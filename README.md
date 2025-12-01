@@ -28,7 +28,7 @@ Aplikacja webowa do tworzenia, zarządzania i wypełniania ankiet.
 
    - cd backend
    - npm install
-   - npm run dev # uruchamia nodemon src/app.js
+   - npm run dev
 
 2. Frontend
    - cd frontend
