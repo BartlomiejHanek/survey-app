@@ -1,6 +1,9 @@
 const express = require("express");
 const cors = require("cors");
+const dotenv = require("dotenv");
+dotenv.config({ path: "./.env" });
 
+const { connectDB } = require("./config/db.js");
 const surveyRoutes = require("./routes/surveyRoutes");
 const responseRoutes = require("./routes/responseRoutes");
 
@@ -11,4 +14,15 @@ app.use(express.json());
 app.use("/api/surveys", surveyRoutes);
 app.use("/api/responses", responseRoutes);
 
-module.exports = app;
+const startServer = async () => {
+  try {
+    await connectDB();
+    const PORT = process.env.PORT || 3000;
+    app.listen(PORT, () => console.log(`Serwer działa na porcie ${PORT}`));
+  } catch (err) {
+    console.error("Błąd przy uruchamianiu serwera:", err);
+    process.exit(1);
+  }
+};
+
+startServer();
