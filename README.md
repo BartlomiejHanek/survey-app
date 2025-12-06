@@ -34,3 +34,8 @@ Aplikacja webowa do tworzenia, zarządzania i wypełniania ankiet.
    - cd frontend
    - npm install
    - npm run dev
+ 
+## Specyfikacja funkcjonalna
+
+Pełna specyfikacja funkcjonalna projektu znajduje się w pliku `docs/functional-spec.md`.
+Zawiera opis ról użytkowników, funkcjonalności dla administratora i uczestnika, wymagania techniczne oraz przykładowe przepływy użytkownika.

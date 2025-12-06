@@ -7,6 +7,7 @@ const OptionSchema = new mongoose.Schema({
 const QuestionSchema = new mongoose.Schema({
   type: { type: String, enum: ['radio','checkbox','text','textarea','scale','select'], required: true },
   text: { type: String, required: true },
+  imageUrl: { type: String },
   required: { type: Boolean, default: false },
   options: [OptionSchema],
   scale: { min: Number, max: Number },

@@ -1,177 +1,308 @@
-import React, { useEffect, useState } from 'react';
-import axios from 'axios';
-import { useParams, useNavigate } from 'react-router-dom';
-import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
+import React, { useState, useEffect } from 'react';
+import { useParams } from 'react-router-dom';
+import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
+import { fetchSurveyById, saveSurvey, publishSurvey, closeSurvey, deleteSurvey, createInvite, archiveSurvey, deleteSurveyResponses } from '../api/apiClient';
+import { useRef } from 'react';
+import { isAdmin } from '../auth';
+import { useNavigate } from 'react-router-dom';
 
 export default function SurveyEditor() {
   const { id } = useParams();
-  const nav = useNavigate();
-  const [survey, setSurvey] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const API = import.meta.env.VITE_API || '';
+  const [survey, setSurvey] = useState({ title: '', description: '', status: 'draft', questions: [] });
+  const [lastInvite, setLastInvite] = useState(null);
+
+  const navigate = useNavigate();
 
   useEffect(() => {
     async function load() {
-      try {
-        const r = await axios.get(`${API}/api/surveys/${id}`);
-        // Ensure questions have _id and order
-        const s = r.data;
-        s.questions = (s.questions || []).map((q, i) => ({ ...q, order: q.order ?? i }));
-        setSurvey(s);
-      } catch (e) {
-        alert('Błąd ładowania ankiety');
-      } finally { setLoading(false); }
+      if (id && id !== 'new') {
+        const data = await fetchSurveyById(id);
+        setSurvey(data);
+      }
     }
     load();
   }, [id]);
 
-  const addQuestion = (type = 'text') => {
-    const q = {
-      _id: 'new-' + Date.now(),
-      type,
-      text: 'Nowe pytanie',
-      required: false,
-      options: type === 'radio' || type === 'checkbox' || type === 'select' ? [{ text: 'Opcja 1' }] : [],
-      scale: type === 'scale' ? { min: 1, max: 5 } : undefined,
-      order: (survey.questions?.length || 0)
-    };
-    setSurvey(prev => ({ ...prev, questions: [...(prev.questions||[]), q] }));
-  };
+  useEffect(() => {
+    // ensure only admins can open editor; otherwise redirect to surveys
+    if (!(isAdmin())) {
+      window.location.href = '/login';
+    }
+  }, []);
 
-  const updateQuestion = (qid, patch) => {
-    setSurvey(prev => ({
-      ...prev,
-      questions: prev.questions.map(q => q._id === qid ? { ...q, ...patch } : q)
-    }));
-  };
-
-  const removeQuestion = (qid) => {
-    if (!window.confirm('Usunąć pytanie?')) return;
-    setSurvey(prev => ({ ...prev, questions: prev.questions.filter(q => q._id !== qid) }));
-  };
-
-  const onDragEnd = (result) => {
+  const handleDragEnd = (result) => {
     if (!result.destination) return;
-    const src = result.source.index;
-    const dest = result.destination.index;
-
     const items = Array.from(survey.questions);
-    const [moved] = items.splice(src, 1);
-    items.splice(dest, 0, moved);
-    // normalize order
-    const normalized = items.map((q, i) => ({ ...q, order: i }));
-    setSurvey(prev => ({ ...prev, questions: normalized }));
+    const [moved] = items.splice(result.source.index, 1);
+    items.splice(result.destination.index, 0, moved);
+    setSurvey({ ...survey, questions: items });
   };
 
-  const save = async (publish=false) => {
-    setSaving(true);
-    try {
-      const payload = { ...survey };
-      // Remove client-only temporary _id for new items (server will assign new ObjectIds)
-      payload.questions = payload.questions.map(q => {
-        const copy = { ...q };
-        if (String(copy._id).startsWith('new-')) delete copy._id;
-        return copy;
-      });
-      await axios.put(`${API}/api/surveys/${id}`, payload);
-      if (publish) {
-        await axios.post(`${API}/api/surveys/${id}/publish`, { status: 'published' });
+  // using shared Button component
+
+  const fileInputRef = useRef();
+
+  const addQuestion = () => {
+    const newQuestion = { id: Date.now().toString(), type: 'text', title: '', required: false, options: [] };
+    setSurvey({ ...survey, questions: [...survey.questions, newQuestion] });
+  };
+
+  const removeQuestion = (index) => {
+    if (!confirm('Czy na pewno usunąć to pytanie?')) return;
+    const qs = [...survey.questions];
+    qs.splice(index, 1);
+    setSurvey({ ...survey, questions: qs });
+  };
+
+  const handleUploadForQuestion = (index) => {
+    // trigger hidden file input and handle selection
+    fileInputRef.current && fileInputRef.current.click();
+    fileInputRef.current._targetQuestion = index;
+  };
+
+  const onFileSelected = (e) => {
+    const f = e.target.files && e.target.files[0];
+    if (!f) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result;
+      const idx = e.target._targetQuestion;
+      if (typeof idx === 'number') {
+        const qs = [...survey.questions];
+        qs[idx].imageUrl = dataUrl;
+        setSurvey({ ...survey, questions: qs });
       }
-      alert('Zapisano');
-      // reload
-      const r = await axios.get(`${API}/api/surveys/${id}`);
-      setSurvey(r.data);
-    } catch (e) {
-      console.error(e);
-      alert('Błąd zapisu: ' + (e.response?.data?.error || e.message));
-    } finally { setSaving(false); }
+    };
+    reader.readAsDataURL(f);
+    // reset input
+    e.target.value = '';
   };
 
-  const exportCSV = () => {
-    // triggers browser download
-    const url = `${API}/api/surveys/${id}/export`;
-    window.open(url, '_blank');
+  const updateQuestion = (index, field, value) => {
+    const questions = [...survey.questions];
+    questions[index][field] = value;
+    setSurvey({ ...survey, questions });
   };
 
-  if (loading) return <div>Ładowanie...</div>;
-  if (!survey) return <div>Nie znaleziono ankiety</div>;
+  const save = async () => {
+    try {
+      const res = await saveSurvey(survey);
+      // update local state with returned id/_id
+      const savedId = res.id || res._id;
+      if (savedId) setSurvey(prev => ({ ...prev, id: savedId, _id: savedId }));
+      alert('Ankieta zapisana!');
+    } catch (err) {
+      console.error(err);
+      alert('Błąd zapisu ankiety');
+    }
+  };
+
+  const handlePublish = async () => {
+    if (!survey.id && !survey._id) return alert('Zapisz najpierw ankietę przed publikacją');
+    try {
+      const res = await publishSurvey(survey.id || survey._id);
+      const returned = res && res.survey ? res.survey : res;
+      const sid = returned._id || returned.id || (survey.id || survey._id);
+      setSurvey(prev => ({ ...prev, status: 'published', id: sid, _id: sid }));
+      const link = `${window.location.origin}/survey/${sid}`;
+      try { await navigator.clipboard.writeText(link); } catch (e) {}
+      alert(`Ankieta opublikowana. Link skopiowany: ${link}`);
+    } catch (err) { console.error(err); alert('Błąd publikacji'); }
+  };
+
+  const handleClose = async () => {
+    if (!survey.id && !survey._id) return;
+    try {
+      await closeSurvey(survey.id || survey._id);
+      setSurvey(prev => ({ ...prev, status: 'closed' }));
+      alert('Ankieta zamknięta');
+    } catch (err) { console.error(err); alert('Błąd zamknięcia'); }
+  };
+
+  const handleArchive = async () => {
+    if (!survey.id && !survey._id) return;
+    if (!confirm('Archiwizować ankietę?')) return;
+    try {
+      await archiveSurvey(survey.id || survey._id);
+      setSurvey(prev => ({ ...prev, status: 'archived' }));
+      alert('Ankieta zarchiwizowana');
+    } catch (err) { console.error(err); alert('Błąd archiwizacji'); }
+  };
+
+  const handleDeleteResponses = async () => {
+    if (!survey.id && !survey._id) return;
+    if (!confirm('Usunąć wszystkie odpowiedzi tej ankiety?')) return;
+    try {
+      await deleteSurveyResponses(survey.id || survey._id);
+      alert('Wszystkie odpowiedzi zostały usunięte');
+    } catch (err) { console.error(err); alert('Błąd usuwania odpowiedzi'); }
+  };
+
+  const handleDelete = async () => {
+    if (!survey.id && !survey._id) return navigate('/admin');
+    if (!confirm('Na pewno usunąć ankietę?')) return;
+    try {
+      await deleteSurvey(survey.id || survey._id);
+      navigate('/admin');
+    } catch (err) { console.error(err); alert('Błąd usuwania'); }
+  };
 
   return (
-    <div style={{ padding: 20 }}>
-      <h1>Edytor ankiety</h1>
-      <div style={{ display: 'flex', gap: 16, marginBottom: 12 }}>
-        <input style={{ flex: 1 }} value={survey.title || ''} onChange={e=>setSurvey({...survey, title: e.target.value})} placeholder="Tytuł ankiety" />
-        <button onClick={()=>addQuestion('text')}>Dodaj tekst</button>
-        <button onClick={()=>addQuestion('textarea')}>Dodaj textarea</button>
-        <button onClick={()=>addQuestion('radio')}>Dodaj radio</button>
-        <button onClick={()=>addQuestion('checkbox')}>Dodaj checkbox</button>
-        <button onClick={()=>addQuestion('select')}>Dodaj select</button>
-        <button onClick={()=>addQuestion('scale')}>Dodaj scale</button>
+    <div className="max-w-4xl mx-auto p-4">
+      <div className="bg-white p-4 rounded shadow mb-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+        <div className="flex-1">
+          <input type="text" value={survey.title || ''} onChange={e => setSurvey({...survey, title: e.target.value})} placeholder="Tytuł ankiety" className="w-full text-xl font-semibold p-2 border rounded" style={{width: '100%'}} />
+          <input type="text" value={survey.description || ''} onChange={e => setSurvey({...survey, description: e.target.value})} placeholder="Krótki opis ankiety" className="w-full mt-2 p-2 border rounded text-sm text-gray-600" style={{width: '100%'}} />
+          <div className="mt-2 flex gap-2 items-center">
+            <label className="text-sm">Aktywna od: <input type="datetime-local" value={survey.validFrom ? new Date(survey.validFrom).toISOString().slice(0,16) : ''} onChange={e => setSurvey({...survey, validFrom: e.target.value ? new Date(e.target.value).toISOString() : null})} className="ml-2 p-1 border rounded" /></label>
+            <label className="text-sm">Ważna do: <input type="datetime-local" value={survey.validUntil ? new Date(survey.validUntil).toISOString().slice(0,16) : ''} onChange={e => setSurvey({...survey, validUntil: e.target.value ? new Date(e.target.value).toISOString() : null})} className="ml-2 p-1 border rounded" /></label>
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <button onClick={save} className="bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded">Zapisz</button>
+          <button onClick={async () => {
+            // Preview: ensure saved then open in new tab
+              try {
+                if (!survey.id && !survey._id) {
+                  const res = await saveSurvey(survey);
+                  const sid = res.id || res._id;
+                  if (sid) setSurvey(prev => ({ ...prev, id: sid, _id: sid }));
+                }
+                const sid = survey.id || survey._id || (await saveSurvey(survey)).id;
+                // open preview in new tab with preview flag
+                window.open(`${window.location.origin}/survey/${sid}?preview=1`, '_blank');
+              } catch (err) { console.error(err); alert('Błąd podglądu'); }
+          }} className="bg-gray-200 hover:bg-gray-300 text-gray-800 py-2 px-4 rounded">Podgląd</button>
+          {survey && (survey.status !== 'published') && (
+            <button onClick={handlePublish} className="bg-indigo-600 text-white px-3 py-1 rounded hover:bg-indigo-700">Publikuj</button>
+          )}
+          {survey && (survey.status === 'published') && (
+            <button onClick={handleClose} className="bg-white border border-gray-300 text-gray-800 px-3 py-1 rounded">Zamknij</button>
+          )}
+          {(survey && (survey.id || survey._id)) && (survey.status !== 'archived') && (
+            <button onClick={handleArchive} className="bg-white border border-gray-300 text-gray-800 px-3 py-1 rounded">Archiwizuj</button>
+          )}
+          {(survey && (survey.id || survey._id)) && (
+            <button onClick={handleDeleteResponses} className="bg-white border border-red-400 text-red-600 px-3 py-1 rounded">Usuń odpowiedzi</button>
+          )}
+          <button onClick={handleDelete} className="bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded">Usuń</button>
+          <button onClick={async () => {
+            if (!survey.id && !survey._id) return alert('Zapisz najpierw ankietę');
+            try {
+              const res = await createInvite(survey.id || survey._id, 1, null);
+              const token = res && res.invite && res.invite.token;
+              const link = `${window.location.origin}/survey/${survey.id || survey._id}?t=${token}`;
+              try { await navigator.clipboard.writeText(link); } catch (e) {}
+              setLastInvite({ token, link });
+              alert(`Utworzono zaproszenie. Link skopiowany: ${link}`);
+            } catch (err) { console.error(err); alert('Błąd tworzenia zaproszenia'); }
+          }} className="bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-4 rounded">Utwórz zaproszenie</button>
+        </div>
       </div>
 
-      <div style={{ marginBottom: 12 }}>
-        <label>Opis:</label>
-        <textarea value={survey.description||''} onChange={e=>setSurvey({...survey, description: e.target.value})} rows={3} style={{ width: '100%' }} />
-      </div>
-
-      <DragDropContext onDragEnd={onDragEnd}>
+      <DragDropContext onDragEnd={handleDragEnd}>
         <Droppable droppableId="questions">
           {(provided) => (
-            <div {...provided.droppableProps} ref={provided.innerRef}>
+            <div ref={provided.innerRef} {...provided.droppableProps} className="space-y-3">
               {survey.questions.map((q, index) => (
-                <Draggable key={q._id} draggableId={String(q._id)} index={index}>
-                  {(prov) => (
-                    <div ref={prov.innerRef} {...prov.draggableProps} style={{ border: '1px solid #ddd', padding: 12, marginBottom:8, borderRadius:6, background:'#fff', ...prov.draggableProps.style }}>
-                      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
-                        <div {...prov.dragHandleProps} style={{ cursor: 'grab' }}>☰</div>
-                        <div style={{ flex: 1, marginLeft: 8 }}>
-                          <input value={q.text} onChange={e=>updateQuestion(q._id, { text: e.target.value })} style={{ width: '100%' }} />
-                          <div style={{ marginTop:6 }}>
-                            <label>Typ: </label>
-                            <select value={q.type} onChange={e=>updateQuestion(q._id, { type: e.target.value, options: (e.target.value==='radio' || e.target.value==='checkbox' || e.target.value==='select') ? (q.options && q.options.length ? q.options : [{ text: 'Opcja 1' }]) : [] })}>
-                              <option value="text">Krótka odpowiedź</option>
-                              <option value="textarea">Dłuższa odpowiedź</option>
-                              <option value="radio">Pojedynczy wybór (radio)</option>
-                              <option value="checkbox">Wielokrotny wybór (checkbox)</option>
+                <Draggable key={q.id} draggableId={q.id} index={index}>
+                  {(provided, snapshot) => (
+                    <div ref={provided.innerRef} {...provided.draggableProps} className={`bg-white p-4 rounded shadow ${snapshot.isDragging ? 'ring-2 ring-blue-300' : ''}`}>
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1">
+                          <div className="flex flex-col md:flex-row md:items-center gap-2">
+                            <div {...provided.dragHandleProps} className="cursor-grab text-gray-500" style={{minWidth: 28, textAlign: 'center'}}>☰</div>
+                            <input type="text" value={q.title || ''} onChange={e => updateQuestion(index, 'title', e.target.value)} placeholder="Tytuł pytania" className="p-2 border rounded flex-1 min-w-0" />
+                            <select value={q.type} onChange={e => updateQuestion(index, 'type', e.target.value)} className="ml-0 md:ml-2 p-2 border rounded text-sm" style={{minWidth: 140}}>
+                              <option value="text">Odpowiedź krótka</option>
+                              <option value="textarea">Tekst długi</option>
+                              <option value="radio">Pojedynczy wybór</option>
+                              <option value="checkbox">Wielokrotny wybór</option>
+                              <option value="scale">Skala</option>
                               <option value="select">Lista rozwijana</option>
-                              <option value="scale">Skala (1-5)</option>
                             </select>
-                            <label style={{ marginLeft: 12 }}><input type="checkbox" checked={q.required||false} onChange={e=>updateQuestion(q._id, { required: e.target.checked })} /> Wymagane</label>
                           </div>
-
-                          {/* options editor */}
-                          {(q.type === 'radio' || q.type === 'checkbox' || q.type === 'select') && (
-                            <div style={{ marginTop:8 }}>
-                              <strong>Opcje:</strong>
-                              {(q.options||[]).map((opt, i) => (
-                                <div key={i} style={{ display:'flex', gap:8, marginTop:6 }}>
-                                  <input value={opt.text} onChange={e=>{
-                                    const newOpts = (q.options||[]).map((o, idx) => idx===i ? { ...o, text: e.target.value } : o);
-                                    updateQuestion(q._id, { options: newOpts });
-                                  }} />
-                                  <button onClick={()=>{
-                                    const newOpts = (q.options||[]).filter((_, idx) => idx !== i);
-                                    updateQuestion(q._id, { options: newOpts });
-                                  }}>Usuń</button>
-                                </div>
-                              ))}
-                              <button style={{ marginTop:8 }} onClick={()=>{
-                                updateQuestion(q._id, { options: [...(q.options||[]), { text: `Opcja ${ (q.options||[]).length + 1 }` }] });
-                              }}>Dodaj opcję</button>
-                            </div>
-                          )}
-
-                          {q.type === 'scale' && (
-                            <div style={{ marginTop:8 }}>
-                              <label>Min: <input type="number" value={q.scale?.min||1} onChange={e=>updateQuestion(q._id, { scale: {...(q.scale||{}), min: Number(e.target.value)} })} /></label>
-                              <label style={{ marginLeft:8 }}>Max: <input type="number" value={q.scale?.max||5} onChange={e=>updateQuestion(q._id, { scale: {...(q.scale||{}), max: Number(e.target.value)} })} /></label>
-                            </div>
-                          )}
-
+                          <label className="flex items-center gap-2 mt-2"><input type="checkbox" checked={q.required} onChange={e => updateQuestion(index, 'required', e.target.checked)} /> Obowiązkowe</label>
                         </div>
-                        <div style={{ marginLeft: 12 }}>
-                          <button onClick={()=>removeQuestion(q._id)}>Usuń</button>
+                      </div>
+
+                          {(q.type === 'radio' || q.type === 'checkbox' || q.type === 'select') && (
+                        <div className="mt-3">
+                          <div className="font-semibold mb-2">Opcje</div>
+                          <div className="space-y-2">
+                            {(q.options || []).map((opt, oi) => (
+                              <div key={oi} className="flex gap-2 items-center">
+                                <input className="border p-2 rounded flex-1" style={{minWidth:0, width: '100%'}} value={opt.text || opt} onChange={e => {
+                                  const qs = [...survey.questions];
+                                  qs[index].options = qs[index].options || [];
+                                  if (typeof qs[index].options[oi] === 'object') qs[index].options[oi].text = e.target.value;
+                                  else qs[index].options[oi] = e.target.value;
+                                  setSurvey({ ...survey, questions: qs });
+                                }}/>
+                                <button className="text-sm text-red-600" onClick={() => {
+                                  const qs = [...survey.questions];
+                                  qs[index].options = qs[index].options || [];
+                                  qs[index].options.splice(oi,1);
+                                  setSurvey({ ...survey, questions: qs });
+                                }}>Usuń</button>
+                              </div>
+                            ))}
+                          </div>
+                          <div className="mt-2">
+                            <button className="bg-gray-100 py-1 px-3 rounded text-sm" onClick={() => {
+                              const qs = [...survey.questions];
+                              qs[index].options = qs[index].options || [];
+                              qs[index].options.push('');
+                              setSurvey({ ...survey, questions: qs });
+                            }}>Dodaj opcję</button>
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="mt-3">
+                        <label className="block font-semibold mb-1">Obraz (URL)</label>
+                          <div className="flex gap-2 items-center">
+                            {/* Image: show button that toggles a simple URL input instead of forcing it */}
+                            {q.imageUrl ? (
+                              <div className="flex items-center gap-2">
+                                <img src={q.imageUrl} alt="preview" style={{maxWidth:200, maxHeight:120, objectFit:'cover', borderRadius:6}} />
+                                <button className="text-sm text-red-600" onClick={() => {
+                                  const qs = [...survey.questions]; qs[index].imageUrl = undefined; setSurvey({ ...survey, questions: qs });
+                                }}>Usuń obraz</button>
+                              </div>
+                            ) : (
+                              <div className="flex gap-2">
+                                <button className="bg-gray-100 text-gray-800 border py-1 px-3 rounded text-sm" onClick={() => {
+                                  const url = prompt('Wklej adres obrazu (URL):');
+                                  if (url) {
+                                    const qs = [...survey.questions]; qs[index].imageUrl = url; setSurvey({ ...survey, questions: qs });
+                                  }
+                                }}>Dodaj przez link</button>
+                                <button className="bg-gray-100 text-gray-800 border py-1 px-3 rounded text-sm" onClick={() => handleUploadForQuestion(index)}>Wybierz z komputera</button>
+                              </div>
+                            )}
+                          </div>
+                      </div>
+
+                      <div className="mt-2 flex items-center justify-between">
+                        {q.type === 'scale' && (
+                        <div className="mt-3 flex gap-4 items-center">
+                          <label className="flex items-center gap-2">Min: <input type="number" value={(q.scale && q.scale.min) || 1} onChange={e => {
+                            const qs = [...survey.questions];
+                            qs[index].scale = { ...(qs[index].scale||{}), min: Number(e.target.value) };
+                            setSurvey({ ...survey, questions: qs });
+                          }} className="p-1 border rounded w-20" /></label>
+                          <label className="flex items-center gap-2">Max: <input type="number" value={(q.scale && q.scale.max) || 5} onChange={e => {
+                            const qs = [...survey.questions];
+                            qs[index].scale = { ...(qs[index].scale||{}), max: Number(e.target.value) };
+                            setSurvey({ ...survey, questions: qs });
+                          }} className="p-1 border rounded w-20" /></label>
+                        </div>
+                        )}
+
+                        <div>
+                          <button className="text-sm text-red-600" onClick={() => removeQuestion(index)}>Usuń pytanie</button>
                         </div>
                       </div>
                     </div>
@@ -184,15 +315,10 @@ export default function SurveyEditor() {
         </Droppable>
       </DragDropContext>
 
-      <div style={{ marginTop: 16, display: 'flex', gap: 8 }}>
-        <button disabled={saving} onClick={()=>save(false)}>{saving ? 'Zapis...' : 'Zapisz'}</button>
-        <button disabled={saving} onClick={()=>save(true)}>Zapisz i Publikuj</button>
-        <button onClick={exportCSV}>Eksport CSV</button>
-        <button onClick={()=>nav(-1)}>Powrót</button>
-      </div>
+        <input type="file" accept="image/*" ref={fileInputRef} style={{ display: 'none' }} onChange={onFileSelected} />
 
-      <div style={{ marginTop: 12 }}>
-        <small>Uwaga: po pierwszym zapisie nowe pytania otrzymają _id generowane przez serwer.</small>
+      <div className="mt-4 flex gap-2">
+          <button onClick={addQuestion} className="bg-gray-100 text-gray-800 border py-1 px-3 rounded text-sm">Dodaj pytanie</button>
       </div>
     </div>
   );
