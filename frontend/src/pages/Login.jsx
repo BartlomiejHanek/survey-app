@@ -12,7 +12,7 @@ export default function Login() {
     try {
       const res = await login(email, password, remember);
       const user = res && res.user;
-      if (user && (user.role === 'admin' || user.role === 'super_admin')) navigate('/admin');
+      if (user && user.role === 'admin') navigate('/admin');
       else navigate('/surveys');
     } catch (err) {
       console.error(err);

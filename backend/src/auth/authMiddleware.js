@@ -2,7 +2,6 @@ const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const JWT_SECRET = process.env.JWT_SECRET || 'change_this_secret';
 
-// middleware that sets req.user if token provided, otherwise continues
 exports.optionalAuth = async (req, res, next) => {
   const auth = req.get('Authorization') || req.get('authorization');
   if (!auth) return next();
@@ -14,7 +13,7 @@ exports.optionalAuth = async (req, res, next) => {
     const user = await User.findById(payload.id).select('-passwordHash');
     if (user) req.user = { id: user._id, role: user.role };
   } catch (err) {
-    // ignore token errors for optional auth
+    
   }
   return next();
 };
@@ -37,27 +36,12 @@ exports.requireAuth = async (req, res, next) => {
   }
 };
 
-// requireAdmin: allow admin and super_admin
 exports.requireAdmin = async (req, res, next) => {
   try {
     await exports.requireAuth(req, res, async () => {
       if (!req.user) return res.status(401).json({ error: 'Brak uwierzytelnienia' });
-      if (req.user.role === 'admin' || req.user.role === 'super_admin') return next();
+      if (req.user.role === 'admin') return next();
       return res.status(403).json({ error: 'Brak uprawnień (admin required)' });
-    });
-  } catch (err) {
-    console.error(err);
-    return res.status(500).json({ error: 'Błąd autoryzacji' });
-  }
-};
-
-// requireSuperAdmin: allow only super_admin
-exports.requireSuperAdmin = async (req, res, next) => {
-  try {
-    await exports.requireAuth(req, res, async () => {
-      if (!req.user) return res.status(401).json({ error: 'Brak uwierzytelnienia' });
-      if (req.user.role === 'super_admin') return next();
-      return res.status(403).json({ error: 'Brak uprawnień (super_admin required)' });
     });
   } catch (err) {
     console.error(err);

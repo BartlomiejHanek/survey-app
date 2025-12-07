@@ -22,14 +22,14 @@ export default function SurveyForm() {
       try {
         const data = await fetchSurveyById(id);
         setSurvey(data);
-        // prefill answers if needed
+        
         const initial = {};
         (data?.questions || []).forEach(q => {
           if (q.type === 'checkbox') initial[q.id] = [];
           else initial[q.id] = initial[q.id] || '';
         });
         setAnswers(initial);
-        // if resume token present, try to load saved answers
+        
         if (resumeTokenFromUrl) {
           try {
             const draft = await resumeDraft(resumeTokenFromUrl);
@@ -42,7 +42,7 @@ export default function SurveyForm() {
             }
           } catch (err) { console.error('Nie można wczytać szkicu:', err); }
         }
-        // no localStorage single-response enforcement — allow multiple respondents for same link
+        
       } catch (err) {
         console.error(err);
       } finally {
@@ -86,7 +86,7 @@ export default function SurveyForm() {
   };
 
   const handleSubmit = async () => {
-    // Do not block repeated submissions based on localStorage. Multiple people can submit the same survey link.
+    
 
     if (!validate()) return;
 

@@ -7,7 +7,7 @@ export default function AdminLayout() {
   const nav = useNavigate();
   useEffect(() => {
     if (!isAdmin()) {
-      // not admin -> redirect to public surveys or login
+      
       nav('/login');
     }
   }, []);

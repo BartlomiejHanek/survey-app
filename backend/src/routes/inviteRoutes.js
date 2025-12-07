@@ -5,7 +5,6 @@ const Invite = require('../models/Invite');
 const Survey = require('../models/Survey');
 const auth = require('../auth/authMiddleware');
 
-// Create an invite token for a survey (admin only)
 router.post('/create', auth.requireAuth, async (req, res) => {
   try {
     if (!req.user || req.user.role !== 'admin') return res.status(403).json({ error: 'Brak uprawnień' });
@@ -24,7 +23,6 @@ router.post('/create', auth.requireAuth, async (req, res) => {
   }
 });
 
-// Validate invite token
 router.get('/validate/:token', async (req, res) => {
   try {
     const token = req.params.token;

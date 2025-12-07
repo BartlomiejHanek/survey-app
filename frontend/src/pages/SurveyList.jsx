@@ -18,7 +18,7 @@ export default function SurveyList() {
     load();
   }, []);
 
-  // using shared Button component
+  
 
   return (
     <div className="space-y-4">

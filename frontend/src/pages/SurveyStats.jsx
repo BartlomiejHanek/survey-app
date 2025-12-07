@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom';
 import { fetchSurveyById, fetchResponses, exportResponsesCsv, archiveSurvey, deleteSurveyResponses } from '../api/apiClient';
 
 function BarChart({ data }) {
-  // data: array of { label, value }
+  
   const total = data.reduce((s, d) => s + d.value, 0) || 1;
   return (
     <div className="space-y-2">
@@ -21,7 +21,7 @@ function BarChart({ data }) {
 }
 
 function PieChart({ data }) {
-  // data: array of { label, value }
+  
   const total = data.reduce((s, d) => s + d.value, 0) || 1;
   let offset = 0;
   const slices = data.map(d => {
@@ -44,7 +44,7 @@ function PieChart({ data }) {
 }
 
 function getColorForLabel(label) {
-  // deterministic color for a label
+  
   let h = 0;
   for (let i = 0; i < label.length; i++) h = (h * 31 + label.charCodeAt(i)) % 360;
   return `hsl(${h},60%,50%)`;
@@ -55,7 +55,6 @@ export default function SurveyStats() {
   const [survey, setSurvey] = useState(null);
   const [responses, setResponses] = useState([]);
   const [loading, setLoading] = useState(true);
-  const timer = useRef(null);
   const [expanded, setExpanded] = useState(null);
 
   useEffect(() => {
@@ -72,12 +71,8 @@ export default function SurveyStats() {
         setLoading(false);
       }
     }
-    if (id) {
-      load();
-      // polling for real-time updates
-      timer.current = setInterval(load, 5000);
-    }
-    return () => { if (timer.current) clearInterval(timer.current); };
+    if (id) load();
+    return undefined;
   }, [id]);
 
   if (loading) return <div className="p-4">Ładowanie...</div>;
@@ -146,7 +141,6 @@ export default function SurveyStats() {
               const agg = aggregate(q);
               const entries = Object.entries(agg).map(([k,v]) => ({ label: k, value: v })).sort((a,b) => b.value - a.value);
               if (entries.length === 0) return <div className="text-gray-600">Brak odpowiedzi</div>;
-              // render chart for closed types
               if (['radio','checkbox','select'].includes(q.type)) {
                 return (
                   <div className="flex gap-6">
@@ -155,7 +149,6 @@ export default function SurveyStats() {
                   </div>
                 );
               }
-              // fallback: table for open types
               return (
                 <table className="w-full text-left table-auto">
                   <thead>

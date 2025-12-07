@@ -3,7 +3,6 @@ import { getToken, setAuth, clearAuth } from '../auth';
 
 const API = axios.create({ baseURL: import.meta.env.VITE_API || 'http://localhost:5000' });
 
-// attach token from storage (session or local)
 const initialToken = getToken();
 if (initialToken) API.defaults.headers.common['Authorization'] = `Bearer ${initialToken}`;
 
@@ -83,7 +82,7 @@ export async function saveSurvey(survey) {
 }
 
 export async function submitResponse(surveyId, answersObj) {
-  // answersObj can be { questionId: value } or { answers: {...}, inviteToken }
+  
   const payload = {};
   if (answersObj && answersObj.answers) {
     payload.answers = answersObj.answers;
@@ -95,7 +94,7 @@ export async function submitResponse(surveyId, answersObj) {
   return res.data;
 }
 
-// register removed in simplified app — admins must be created directly in the DB
+ 
 
 export async function createInvite(surveyId, maxUses = 1, expiresAt = null) {
   const res = await API.post('/api/invites/create', { surveyId, maxUses, expiresAt });
@@ -128,7 +127,7 @@ export async function deleteSurveyResponses(id) {
 }
 
 export async function exportResponsesCsv(surveyId) {
-  // returns blob
+  
   const res = await API.get(`/api/responses/${surveyId}/export`, { responseType: 'blob' });
   return res.data;
 }
@@ -161,6 +160,6 @@ export async function resumeDraft(resumeToken) {
   return res.data;
 }
 
-// user management functions removed in simplified app
+ 
 
 export default API;

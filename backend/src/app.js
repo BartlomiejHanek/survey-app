@@ -18,7 +18,6 @@ app.use("/api/responses", responseRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/invites', inviteRoutes);
 
-// Error handling middleware (returns JSON error in development)
 app.use((err, req, res, next) => {
   console.error('Express error:', err);
   res.status(err.status || 500).json({ error: err.message || 'Internal Server Error' });

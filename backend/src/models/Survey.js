@@ -18,7 +18,7 @@ const SurveySchema = new mongoose.Schema({
   title: { type: String, required: true },
   description: String,
   author: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-  status: { type: String, enum: ['draft','published','closed'], default: 'draft' },
+  status: { type: String, enum: ['draft','published','closed','archived'], default: 'draft' },
   allowAnonymous: { type: Boolean, default: true },
   singleResponse: { type: Boolean, default: false },
   maxResponses: { type: Number, default: 0 },

@@ -24,7 +24,6 @@ export default function SurveyEditor() {
   }, [id]);
 
   useEffect(() => {
-    // ensure only admins can open editor; otherwise redirect to surveys
     if (!(isAdmin())) {
       window.location.href = '/login';
     }
@@ -38,7 +37,7 @@ export default function SurveyEditor() {
     setSurvey({ ...survey, questions: items });
   };
 
-  // using shared Button component
+  
 
   const fileInputRef = useRef();
 
@@ -55,7 +54,6 @@ export default function SurveyEditor() {
   };
 
   const handleUploadForQuestion = (index) => {
-    // trigger hidden file input and handle selection
     fileInputRef.current && fileInputRef.current.click();
     fileInputRef.current._targetQuestion = index;
   };
@@ -74,7 +72,6 @@ export default function SurveyEditor() {
       }
     };
     reader.readAsDataURL(f);
-    // reset input
     e.target.value = '';
   };
 
@@ -87,7 +84,6 @@ export default function SurveyEditor() {
   const save = async () => {
     try {
       const res = await saveSurvey(survey);
-      // update local state with returned id/_id
       const savedId = res.id || res._id;
       if (savedId) setSurvey(prev => ({ ...prev, id: savedId, _id: savedId }));
       alert('Ankieta zapisana!');
@@ -153,6 +149,7 @@ export default function SurveyEditor() {
         <div className="flex-1">
           <input type="text" value={survey.title || ''} onChange={e => setSurvey({...survey, title: e.target.value})} placeholder="Tytuł ankiety" className="w-full text-xl font-semibold p-2 border rounded" style={{width: '100%'}} />
           <input type="text" value={survey.description || ''} onChange={e => setSurvey({...survey, description: e.target.value})} placeholder="Krótki opis ankiety" className="w-full mt-2 p-2 border rounded text-sm text-gray-600" style={{width: '100%'}} />
+          <label className="flex items-center gap-2 mt-2 text-sm"><input type="checkbox" checked={!!survey.singleResponse} onChange={e => setSurvey({...survey, singleResponse: !!e.target.checked})} /> Tylko jedno wypełnienie (wymaga tokena)</label>
           <div className="mt-2 flex gap-2 items-center">
             <label className="text-sm">Aktywna od: <input type="datetime-local" value={survey.validFrom ? new Date(survey.validFrom).toISOString().slice(0,16) : ''} onChange={e => setSurvey({...survey, validFrom: e.target.value ? new Date(e.target.value).toISOString() : null})} className="ml-2 p-1 border rounded" /></label>
             <label className="text-sm">Ważna do: <input type="datetime-local" value={survey.validUntil ? new Date(survey.validUntil).toISOString().slice(0,16) : ''} onChange={e => setSurvey({...survey, validUntil: e.target.value ? new Date(e.target.value).toISOString() : null})} className="ml-2 p-1 border rounded" /></label>
@@ -162,7 +159,6 @@ export default function SurveyEditor() {
         <div className="flex flex-col gap-2">
           <button onClick={save} className="bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded">Zapisz</button>
           <button onClick={async () => {
-            // Preview: ensure saved then open in new tab
               try {
                 if (!survey.id && !survey._id) {
                   const res = await saveSurvey(survey);
@@ -170,7 +166,6 @@ export default function SurveyEditor() {
                   if (sid) setSurvey(prev => ({ ...prev, id: sid, _id: sid }));
                 }
                 const sid = survey.id || survey._id || (await saveSurvey(survey)).id;
-                // open preview in new tab with preview flag
                 window.open(`${window.location.origin}/survey/${sid}?preview=1`, '_blank');
               } catch (err) { console.error(err); alert('Błąd podglądu'); }
           }} className="bg-gray-200 hover:bg-gray-300 text-gray-800 py-2 px-4 rounded">Podgląd</button>
@@ -263,7 +258,7 @@ export default function SurveyEditor() {
                       <div className="mt-3">
                         <label className="block font-semibold mb-1">Obraz (URL)</label>
                           <div className="flex gap-2 items-center">
-                            {/* Image: show button that toggles a simple URL input instead of forcing it */}
+                            
                             {q.imageUrl ? (
                               <div className="flex items-center gap-2">
                                 <img src={q.imageUrl} alt="preview" style={{maxWidth:200, maxHeight:120, objectFit:'cover', borderRadius:6}} />

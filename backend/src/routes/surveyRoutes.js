@@ -1,10 +1,10 @@
-// backend/routes/surveyRoutes.js
+ 
 const express = require("express");
 const router = express.Router();
 const Survey = require("../models/Survey");
 const auth = require('../auth/authMiddleware');
 
-// GET: wszystkie ankiety (admin panel)
+ 
 router.get("/", async (req, res) => {
   try {
     const surveys = await Survey.find().sort({ createdAt: -1 });
@@ -14,13 +14,20 @@ router.get("/", async (req, res) => {
   }
 });
 
-// GET: jedna ankieta
+ 
 router.get("/:id", async (req, res) => {
   try {
     const survey = await Survey.findById(req.params.id);
     if (!survey) return res.status(404).json({ error: "Ankieta nie istnieje" });
+    try {
+      const now = new Date();
+      if (survey.validUntil && now > survey.validUntil && survey.status !== 'closed') {
+        survey.status = 'closed';
+        await survey.save();
+      }
+    } catch (e) { }
 
-    // map database schema to frontend-friendly shape
+    
     const dto = {
       _id: survey._id,
       title: survey.title,
@@ -51,7 +58,7 @@ router.get("/:id", async (req, res) => {
   }
 });
 
-// POST: tworzenie ankiety (admin)
+ 
 router.post("/", auth.requireAuth, async (req, res) => {
   if (!req.user || req.user.role !== 'admin') return res.status(403).json({ error: 'Brak uprawnień' });
   try {
@@ -77,7 +84,7 @@ router.post("/", auth.requireAuth, async (req, res) => {
       validUntil: body.validUntil,
       questions
     });
-    // set author
+    
     if (req.user && req.user.id) survey.author = req.user.id;
 
     await survey.save();
@@ -87,7 +94,7 @@ router.post("/", auth.requireAuth, async (req, res) => {
   }
 });
 
-// PUT: edycja ankiety (nazwa, opis, pytania, status) (admin)
+ 
 router.put("/:id", auth.requireAuth, async (req, res) => {
   if (!req.user || req.user.role !== 'admin') return res.status(403).json({ error: 'Brak uprawnień' });
   try {
@@ -126,7 +133,7 @@ router.put("/:id", auth.requireAuth, async (req, res) => {
   }
 });
 
-// DELETE: usuwanie ankiety (admin)
+ 
 router.delete("/:id", auth.requireAuth, async (req, res) => {
   if (!req.user || req.user.role !== 'admin') return res.status(403).json({ error: 'Brak uprawnień' });
   try {
@@ -137,7 +144,7 @@ router.delete("/:id", auth.requireAuth, async (req, res) => {
   }
 });
 
-// POST: publikuj ankietę (admin)
+ 
 router.post('/:id/publish', auth.requireAuth, async (req, res) => {
   if (!req.user || req.user.role !== 'admin') return res.status(403).json({ error: 'Brak uprawnień' });
   try {
@@ -153,7 +160,7 @@ router.post('/:id/publish', auth.requireAuth, async (req, res) => {
   }
 });
 
-// POST: zamknij ankietę (status closed) (admin)
+ 
 router.post('/:id/close', auth.requireAuth, async (req, res) => {
   if (!req.user || req.user.role !== 'admin') return res.status(403).json({ error: 'Brak uprawnień' });
   try {
@@ -168,7 +175,7 @@ router.post('/:id/close', auth.requireAuth, async (req, res) => {
   }
 });
 
-// POST: archiwizuj ankietę (status archived) (admin)
+ 
 router.post('/:id/archive', auth.requireAuth, async (req, res) => {
   if (!req.user || req.user.role !== 'admin') return res.status(403).json({ error: 'Brak uprawnień' });
   try {
@@ -183,7 +190,7 @@ router.post('/:id/archive', auth.requireAuth, async (req, res) => {
   }
 });
 
-// DELETE: usuń wszystkie odpowiedzi do ankiety (admin)
+ 
 router.delete('/:id/responses', auth.requireAuth, async (req, res) => {
   if (!req.user || req.user.role !== 'admin') return res.status(403).json({ error: 'Brak uprawnień' });
   try {

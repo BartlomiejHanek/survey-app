@@ -7,15 +7,15 @@ import SurveyStats from './pages/SurveyStats';
 import SurveyForm from './pages/SurveyForm';
 import Login from './pages/Login';
 import PublicSurveys from './pages/PublicSurveys';
-// users management removed in simplified app
+ 
 import { getToken, getUser, isRemembered } from './auth';
 
 function HomeRedirect() {
-  // Only auto-redirect when the user chose "remember me" (persistent token in localStorage).
+  
   const remembered = isRemembered();
   const user = getUser();
   if (!remembered) return <Navigate to="/login" replace />;
-  if (user && (user.role === 'admin' || user.role === 'super_admin')) return <Navigate to="/admin" replace />;
+  if (user && user.role === 'admin') return <Navigate to="/admin" replace />;
   return <Navigate to="/surveys" replace />;
 }
 

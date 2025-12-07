@@ -4,8 +4,6 @@ const User = require('../models/User');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'change_this_secret';
 
-// registration endpoint removed: admins should be created directly in the DB or via a secure seeding process
-
 exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
