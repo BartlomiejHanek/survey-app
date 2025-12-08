@@ -66,6 +66,10 @@ export async function archiveSurvey(id) {
   return request('post', `/api/surveys/${id}/archive`);
 }
 
+export async function unarchiveSurvey(id) {
+  return request('post', `/api/surveys/${id}/unarchive`);
+}
+
 export async function deleteSurveyResponses(id) {
   return request('delete', `/api/surveys/${id}/responses`);
 }

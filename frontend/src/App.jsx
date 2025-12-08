@@ -11,12 +11,10 @@ import PublicSurveys from './pages/PublicSurveys';
 import { getToken, getUser, isRemembered } from './auth';
 
 function HomeRedirect() {
-  
   const remembered = isRemembered();
   const user = getUser();
-  if (!remembered) return <Navigate to="/login" replace />;
   if (user) return <Navigate to="/admin" replace />;
-  return <Navigate to="/surveys" replace />;
+  return <Navigate to="/login" replace />;
 }
 
 function NotFound() {

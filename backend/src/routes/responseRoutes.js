@@ -26,6 +26,7 @@ router.post("/:surveyId", authMiddleware.optionalAuth, async (req, res) => {
       }
     }
     if (survey.validFrom && now < survey.validFrom) return res.status(400).json({ error: 'Ankieta jeszcze nie aktywna' });
+    if (survey.status === 'archived') return res.status(400).json({ error: 'Ankieta jest zarchiwizowana i nie przyjmuje odpowiedzi' });
     if (survey.status !== 'published') return res.status(400).json({ error: 'Ankieta nie jest opublikowana' });
 
     if (survey.maxResponses && survey.maxResponses > 0) {

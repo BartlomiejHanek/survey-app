@@ -47,6 +47,7 @@ router.get("/:id", async (req, res) => {
         required: q.required,
         options: Array.isArray(q.options) ? q.options.map(o => (o.text || o)) : [],
         imageUrl: q.imageUrl || null,
+        scale: q.scale || null,
         order: q.order
       })),
       createdAt: survey.createdAt,
@@ -105,6 +106,12 @@ router.post("/", auth.requireAuth, async (req, res) => {
 router.put("/:id", auth.requireAuth, async (req, res) => {
   if (!req.user) return res.status(403).json({ error: 'Brak uprawnień' });
   try {
+    const existingSurvey = await Survey.findById(req.params.id);
+    if (!existingSurvey) return res.status(404).json({ error: 'Ankieta nie istnieje' });
+    if (existingSurvey.status === 'archived') {
+      return res.status(403).json({ error: 'Nie można edytować zarchiwizowanej ankiety. Najpierw przywróć ankietę.' });
+    }
+
     const body = req.body || {};
     const questions = Array.isArray(body.questions) ? body.questions.map((q, i) => {
       const idCandidate = q._id || q.id;
@@ -200,6 +207,22 @@ router.post('/:id/archive', auth.requireAuth, async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Nie można zarchiwizować ankiety' });
+  }
+});
+
+router.post('/:id/unarchive', auth.requireAuth, async (req, res) => {
+  if (!req.user) return res.status(403).json({ error: 'Brak uprawnień' });
+  try {
+    const survey = await Survey.findById(req.params.id);
+    if (!survey) return res.status(404).json({ error: 'Ankieta nie istnieje' });
+    if (survey.status !== 'archived') return res.status(400).json({ error: 'Ankieta nie jest zarchiwizowana' });
+    // Przywróć do poprzedniego statusu lub draft
+    survey.status = survey.publishedAt ? 'published' : 'draft';
+    await survey.save();
+    res.json({ success: true, survey });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Nie można przywrócić ankiety' });
   }
 });
 
