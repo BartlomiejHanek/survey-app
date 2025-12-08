@@ -93,11 +93,13 @@ export default function SurveyForm() {
     try {
       const payload = { answers };
       if (inviteTokenFromUrl) payload.inviteToken = inviteTokenFromUrl;
+      if (previewMode) payload.preview = true;
       await submitResponse(id, payload);
       setSubmitted(true);
     } catch (err) {
       console.error(err);
-      alert('Wystąpił błąd podczas wysyłania odpowiedzi. Spróbuj ponownie.');
+      const serverMsg = err && err.response && err.response.data && err.response.data.error;
+      alert(serverMsg || 'Wystąpił błąd podczas wysyłania odpowiedzi. Spróbuj ponownie.');
     }
   };
 

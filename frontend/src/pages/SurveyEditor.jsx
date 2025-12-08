@@ -3,8 +3,9 @@ import { useParams } from 'react-router-dom';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { fetchSurveyById, saveSurvey, publishSurvey, closeSurvey, deleteSurvey, createInvite, archiveSurvey, deleteSurveyResponses } from '../api/apiClient';
 import { useRef } from 'react';
-import { isAdmin } from '../auth';
+import { isLoggedIn } from '../auth';
 import { useNavigate } from 'react-router-dom';
+import { getSurveyId } from '../utils/surveys';
 
 export default function SurveyEditor() {
   const { id } = useParams();
@@ -23,8 +24,27 @@ export default function SurveyEditor() {
     load();
   }, [id]);
 
+  // czas zimowy
+  const formatLocalDatetime = (val) => {
+    if (!val) return '';
+    const d = new Date(val);
+    if (Number.isNaN(d.getTime())) return '';
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  };
+
+  const parseLocalDatetimeToISO = (localValue) => {
+    if (!localValue) return null;
+    const [datePart, timePart] = localValue.split('T');
+    if (!datePart || !timePart) return null;
+    const [y, m, d] = datePart.split('-').map(n => parseInt(n, 10));
+    const [hh, mm] = timePart.split(':').map(n => parseInt(n, 10));
+    const dt = new Date(y, m - 1, d, hh, mm);
+    return dt.toISOString();
+  };
+
   useEffect(() => {
-    if (!(isAdmin())) {
+    if (!(isLoggedIn())) {
       window.location.href = '/login';
     }
   }, []);
@@ -84,7 +104,7 @@ export default function SurveyEditor() {
   const save = async () => {
     try {
       const res = await saveSurvey(survey);
-      const savedId = res.id || res._id;
+      const savedId = getSurveyId(res);
       if (savedId) setSurvey(prev => ({ ...prev, id: savedId, _id: savedId }));
       alert('Ankieta zapisana!');
     } catch (err) {
@@ -94,51 +114,56 @@ export default function SurveyEditor() {
   };
 
   const handlePublish = async () => {
-    if (!survey.id && !survey._id) return alert('Zapisz najpierw ankietę przed publikacją');
+    const sid = getSurveyId(survey);
+    if (!sid) return alert('Zapisz najpierw ankietę przed publikacją');
     try {
-      const res = await publishSurvey(survey.id || survey._id);
-      const returned = res && res.survey ? res.survey : res;
-      const sid = returned._id || returned.id || (survey.id || survey._id);
-      setSurvey(prev => ({ ...prev, status: 'published', id: sid, _id: sid }));
-      const link = `${window.location.origin}/survey/${sid}`;
+      const res = await publishSurvey(sid);
+      const returned = res?.survey || res || {};
+      const finalId = getSurveyId(returned) || sid;
+      setSurvey(prev => ({ ...prev, status: 'published', id: finalId, _id: finalId }));
+      const link = `${window.location.origin}/survey/${finalId}`;
       try { await navigator.clipboard.writeText(link); } catch (e) {}
       alert(`Ankieta opublikowana. Link skopiowany: ${link}`);
     } catch (err) { console.error(err); alert('Błąd publikacji'); }
   };
 
   const handleClose = async () => {
-    if (!survey.id && !survey._id) return;
+    const sid = getSurveyId(survey);
+    if (!sid) return;
     try {
-      await closeSurvey(survey.id || survey._id);
+      await closeSurvey(sid);
       setSurvey(prev => ({ ...prev, status: 'closed' }));
       alert('Ankieta zamknięta');
     } catch (err) { console.error(err); alert('Błąd zamknięcia'); }
   };
 
   const handleArchive = async () => {
-    if (!survey.id && !survey._id) return;
+    const sid = getSurveyId(survey);
+    if (!sid) return;
     if (!confirm('Archiwizować ankietę?')) return;
     try {
-      await archiveSurvey(survey.id || survey._id);
+      await archiveSurvey(sid);
       setSurvey(prev => ({ ...prev, status: 'archived' }));
       alert('Ankieta zarchiwizowana');
     } catch (err) { console.error(err); alert('Błąd archiwizacji'); }
   };
 
   const handleDeleteResponses = async () => {
-    if (!survey.id && !survey._id) return;
+    const sid = getSurveyId(survey);
+    if (!sid) return;
     if (!confirm('Usunąć wszystkie odpowiedzi tej ankiety?')) return;
     try {
-      await deleteSurveyResponses(survey.id || survey._id);
+      await deleteSurveyResponses(sid);
       alert('Wszystkie odpowiedzi zostały usunięte');
     } catch (err) { console.error(err); alert('Błąd usuwania odpowiedzi'); }
   };
 
   const handleDelete = async () => {
-    if (!survey.id && !survey._id) return navigate('/admin');
+    const sid = getSurveyId(survey);
+    if (!sid) return navigate('/admin');
     if (!confirm('Na pewno usunąć ankietę?')) return;
     try {
-      await deleteSurvey(survey.id || survey._id);
+      await deleteSurvey(sid);
       navigate('/admin');
     } catch (err) { console.error(err); alert('Błąd usuwania'); }
   };
@@ -151,8 +176,8 @@ export default function SurveyEditor() {
           <input type="text" value={survey.description || ''} onChange={e => setSurvey({...survey, description: e.target.value})} placeholder="Krótki opis ankiety" className="w-full mt-2 p-2 border rounded text-sm text-gray-600" style={{width: '100%'}} />
           <label className="flex items-center gap-2 mt-2 text-sm"><input type="checkbox" checked={!!survey.singleResponse} onChange={e => setSurvey({...survey, singleResponse: !!e.target.checked})} /> Tylko jedno wypełnienie (wymaga tokena)</label>
           <div className="mt-2 flex gap-2 items-center">
-            <label className="text-sm">Aktywna od: <input type="datetime-local" value={survey.validFrom ? new Date(survey.validFrom).toISOString().slice(0,16) : ''} onChange={e => setSurvey({...survey, validFrom: e.target.value ? new Date(e.target.value).toISOString() : null})} className="ml-2 p-1 border rounded" /></label>
-            <label className="text-sm">Ważna do: <input type="datetime-local" value={survey.validUntil ? new Date(survey.validUntil).toISOString().slice(0,16) : ''} onChange={e => setSurvey({...survey, validUntil: e.target.value ? new Date(e.target.value).toISOString() : null})} className="ml-2 p-1 border rounded" /></label>
+            <label className="text-sm">Aktywna od: <input type="datetime-local" value={formatLocalDatetime(survey.validFrom)} onChange={e => setSurvey({...survey, validFrom: e.target.value ? parseLocalDatetimeToISO(e.target.value) : null})} className="ml-2 p-1 border rounded" /></label>
+              <label className="text-sm">Ważna do: <input type="datetime-local" value={formatLocalDatetime(survey.validUntil)} onChange={e => setSurvey({...survey, validUntil: e.target.value ? parseLocalDatetimeToISO(e.target.value) : null})} className="ml-2 p-1 border rounded" /></label>
           </div>
         </div>
 
@@ -160,12 +185,12 @@ export default function SurveyEditor() {
           <button onClick={save} className="bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded">Zapisz</button>
           <button onClick={async () => {
               try {
-                if (!survey.id && !survey._id) {
+                if (!getSurveyId(survey)) {
                   const res = await saveSurvey(survey);
-                  const sid = res.id || res._id;
+                  const sid = getSurveyId(res);
                   if (sid) setSurvey(prev => ({ ...prev, id: sid, _id: sid }));
                 }
-                const sid = survey.id || survey._id || (await saveSurvey(survey)).id;
+                const sid = getSurveyId(survey) || getSurveyId(await saveSurvey(survey));
                 window.open(`${window.location.origin}/survey/${sid}?preview=1`, '_blank');
               } catch (err) { console.error(err); alert('Błąd podglądu'); }
           }} className="bg-gray-200 hover:bg-gray-300 text-gray-800 py-2 px-4 rounded">Podgląd</button>
@@ -175,19 +200,20 @@ export default function SurveyEditor() {
           {survey && (survey.status === 'published') && (
             <button onClick={handleClose} className="bg-white border border-gray-300 text-gray-800 px-3 py-1 rounded">Zamknij</button>
           )}
-          {(survey && (survey.id || survey._id)) && (survey.status !== 'archived') && (
+          {(survey && getSurveyId(survey)) && (survey.status !== 'archived') && (
             <button onClick={handleArchive} className="bg-white border border-gray-300 text-gray-800 px-3 py-1 rounded">Archiwizuj</button>
           )}
-          {(survey && (survey.id || survey._id)) && (
+          {(survey && getSurveyId(survey)) && (
             <button onClick={handleDeleteResponses} className="bg-white border border-red-400 text-red-600 px-3 py-1 rounded">Usuń odpowiedzi</button>
           )}
           <button onClick={handleDelete} className="bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded">Usuń</button>
           <button onClick={async () => {
-            if (!survey.id && !survey._id) return alert('Zapisz najpierw ankietę');
+            const sid = getSurveyId(survey);
+            if (!sid) return alert('Zapisz najpierw ankietę');
             try {
-              const res = await createInvite(survey.id || survey._id, 1, null);
+              const res = await createInvite(sid, 1, null);
               const token = res && res.invite && res.invite.token;
-              const link = `${window.location.origin}/survey/${survey.id || survey._id}?t=${token}`;
+              const link = `${window.location.origin}/survey/${sid}?t=${token}`;
               try { await navigator.clipboard.writeText(link); } catch (e) {}
               setLastInvite({ token, link });
               alert(`Utworzono zaproszenie. Link skopiowany: ${link}`);

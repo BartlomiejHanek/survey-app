@@ -7,7 +7,7 @@ const auth = require('../auth/authMiddleware');
 
 router.post('/create', auth.requireAuth, async (req, res) => {
   try {
-    if (!req.user || req.user.role !== 'admin') return res.status(403).json({ error: 'Brak uprawnień' });
+    if (!req.user) return res.status(403).json({ error: 'Brak uprawnień' });
     const { surveyId, maxUses = 1, expiresAt } = req.body;
     if (!surveyId) return res.status(400).json({ error: 'Brak surveyId' });
     const survey = await Survey.findById(surveyId);

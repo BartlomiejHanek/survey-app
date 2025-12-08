@@ -1,13 +1,12 @@
 import React, { useEffect } from 'react';
 import { Outlet, useNavigate, Link } from 'react-router-dom';
-import { isAdmin } from '../auth';
+import { isLoggedIn } from '../auth';
 import { logout } from '../api/apiClient';
 
 export default function AdminLayout() {
   const nav = useNavigate();
   useEffect(() => {
-    if (!isAdmin()) {
-      
+    if (!isLoggedIn()) {
       nav('/login');
     }
   }, []);
@@ -18,7 +17,7 @@ export default function AdminLayout() {
         <nav className="flex flex-col p-2">
           <Link to="/admin" className="p-2 rounded hover:bg-gray-100">Lista ankiet</Link>
           <Link to="/surveys?preview=1" className="p-2 rounded hover:bg-gray-100">Przegląd ankiet</Link>
-          {isAdmin() && <Link to="/admin/edit/new" className="p-2 rounded hover:bg-gray-100">Nowa ankieta</Link>}
+          {isLoggedIn() && <Link to="/admin/edit/new" className="p-2 rounded hover:bg-gray-100">Nowa ankieta</Link>}
         </nav>
       </div>
       <div className="flex-1 flex flex-col">

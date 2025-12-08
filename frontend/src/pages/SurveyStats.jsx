@@ -83,8 +83,13 @@ export default function SurveyStats() {
   const aggregate = (question) => {
     const qId = question.id || question._id;
     const map = {};
+    const qIndex = (survey.questions || []).findIndex(q => String(q.id || q._id) === String(qId));
     responses.forEach(resp => {
-      const ans = resp.answers.find(a => String(a.questionId) === String(qId));
+      let ans = Array.isArray(resp.answers) ? resp.answers.find(a => String(a.questionId) === String(qId)) : null;
+      if (!ans && Array.isArray(resp.answers) && qIndex !== -1 && resp.answers.length === (survey.questions || []).length) {
+        const maybe = resp.answers[qIndex];
+        if (maybe) ans = maybe;
+      }
       if (!ans) return;
       const v = ans.value;
       if (Array.isArray(v)) {

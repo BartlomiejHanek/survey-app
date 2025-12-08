@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { fetchSurveys } from '../api/apiClient';
+import { getSurveyId } from '../utils/surveys';
 
 export default function PublicSurveys() {
   const [surveys, setSurveys] = useState([]);
@@ -26,14 +27,14 @@ export default function PublicSurveys() {
       <h2 className="text-2xl font-bold mb-4">Ankiety</h2>
       <div className="space-y-3">
         {surveys.map(s => (
-          <div key={s.id || s._id} className="p-4 bg-white rounded shadow">
+          <div key={getSurveyId(s)} className="p-4 bg-white rounded shadow">
             <h3 className="font-semibold text-lg">{s.title}</h3>
             <p className="text-gray-600">{s.description}</p>
             <div className="mt-2">
               {previewMode ? (
-                <Link to={`/survey/${s.id || s._id}?preview=1`} className="bg-white border border-gray-300 text-gray-800 px-3 py-1 rounded">Podgląd</Link>
+                <Link to={`/survey/${getSurveyId(s)}?preview=1`} className="bg-white border border-gray-300 text-gray-800 px-3 py-1 rounded">Podgląd</Link>
               ) : (
-                <Link to={`/survey/${s.id || s._id}`} className="bg-green-600 text-white py-1 px-3 rounded">Wypełnij ankietę</Link>
+                <Link to={`/survey/${getSurveyId(s)}`} className="bg-green-600 text-white py-1 px-3 rounded">Wypełnij ankietę</Link>
               )}
             </div>
           </div>

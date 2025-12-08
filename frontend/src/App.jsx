@@ -15,7 +15,7 @@ function HomeRedirect() {
   const remembered = isRemembered();
   const user = getUser();
   if (!remembered) return <Navigate to="/login" replace />;
-  if (user && user.role === 'admin') return <Navigate to="/admin" replace />;
+  if (user) return <Navigate to="/admin" replace />;
   return <Navigate to="/surveys" replace />;
 }
 

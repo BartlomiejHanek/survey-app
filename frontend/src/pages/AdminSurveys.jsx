@@ -6,7 +6,8 @@ import { Link } from 'react-router-dom';
 const STATUS_MAP = {
   draft: 'Robocza',
   published: 'Opublikowana',
-  closed: 'Zamknięta'
+  closed: 'Zamknięta',
+  archived: 'Zarchiwizowana',
 };
 
 export default function AdminSurveys(){

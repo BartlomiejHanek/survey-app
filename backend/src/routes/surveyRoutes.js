@@ -1,6 +1,7 @@
  
 const express = require("express");
 const router = express.Router();
+const mongoose = require('mongoose');
 const Survey = require("../models/Survey");
 const auth = require('../auth/authMiddleware');
 
@@ -60,18 +61,23 @@ router.get("/:id", async (req, res) => {
 
  
 router.post("/", auth.requireAuth, async (req, res) => {
-  if (!req.user || req.user.role !== 'admin') return res.status(403).json({ error: 'Brak uprawnień' });
+  if (!req.user) return res.status(403).json({ error: 'Brak uprawnień' });
   try {
     const body = req.body || {};
-    const questions = Array.isArray(body.questions) ? body.questions.map((q, i) => ({
-      text: q.title || q.text || `Pytanie ${i + 1}`,
-      type: q.type || 'text',
-      required: !!q.required,
-      options: Array.isArray(q.options) ? q.options.map(o => ({ text: (typeof o === 'string' ? o : (o.text || '')) })) : [],
-      imageUrl: q.imageUrl || q.image || null,
-      scale: q.scale,
-      order: typeof q.order === 'number' ? q.order : i
-    })) : [];
+    const questions = Array.isArray(body.questions) ? body.questions.map((q, i) => {
+      const idCandidate = q._id || q.id;
+      const out = {
+        text: q.title || q.text || `Pytanie ${i + 1}`,
+        type: q.type || 'text',
+        required: !!q.required,
+        options: Array.isArray(q.options) ? q.options.map(o => ({ text: (typeof o === 'string' ? o : (o.text || '')) })) : [],
+        imageUrl: q.imageUrl || q.image || null,
+        scale: q.scale,
+        order: typeof q.order === 'number' ? q.order : i
+      };
+      if (idCandidate && mongoose.Types.ObjectId.isValid(String(idCandidate))) out._id = String(idCandidate);
+      return out;
+    }) : [];
 
     const survey = new Survey({
       title: body.title,
@@ -90,24 +96,30 @@ router.post("/", auth.requireAuth, async (req, res) => {
     await survey.save();
     res.status(201).json(survey);
   } catch (err) {
+    console.error('Error creating survey:', err);
     res.status(500).json({ error: "Nie udało się stworzyć ankiety" });
   }
 });
 
  
 router.put("/:id", auth.requireAuth, async (req, res) => {
-  if (!req.user || req.user.role !== 'admin') return res.status(403).json({ error: 'Brak uprawnień' });
+  if (!req.user) return res.status(403).json({ error: 'Brak uprawnień' });
   try {
     const body = req.body || {};
-    const questions = Array.isArray(body.questions) ? body.questions.map((q, i) => ({
-      text: q.title || q.text || `Pytanie ${i + 1}`,
-      type: q.type || 'text',
-      required: !!q.required,
-      options: Array.isArray(q.options) ? q.options.map(o => ({ text: (typeof o === 'string' ? o : (o.text || '')) })) : [],
-      imageUrl: q.imageUrl || q.image || null,
-      scale: q.scale,
-      order: typeof q.order === 'number' ? q.order : i
-    })) : undefined;
+    const questions = Array.isArray(body.questions) ? body.questions.map((q, i) => {
+      const idCandidate = q._id || q.id;
+      const out = {
+        text: q.title || q.text || `Pytanie ${i + 1}`,
+        type: q.type || 'text',
+        required: !!q.required,
+        options: Array.isArray(q.options) ? q.options.map(o => ({ text: (typeof o === 'string' ? o : (o.text || '')) })) : [],
+        imageUrl: q.imageUrl || q.image || null,
+        scale: q.scale,
+        order: typeof q.order === 'number' ? q.order : i
+      };
+      if (idCandidate && mongoose.Types.ObjectId.isValid(String(idCandidate))) out._id = String(idCandidate);
+      return out;
+    }) : undefined;
 
     const update = {
       title: body.title,
@@ -129,13 +141,14 @@ router.put("/:id", auth.requireAuth, async (req, res) => {
     if (!survey) return res.status(404).json({ error: 'Ankieta nie istnieje' });
     res.json(survey);
   } catch {
+    console.error('Error updating survey:', arguments);
     res.status(500).json({ error: "Nie udało się zaktualizować ankiety" });
   }
 });
 
  
 router.delete("/:id", auth.requireAuth, async (req, res) => {
-  if (!req.user || req.user.role !== 'admin') return res.status(403).json({ error: 'Brak uprawnień' });
+  if (!req.user) return res.status(403).json({ error: 'Brak uprawnień' });
   try {
     await Survey.findByIdAndDelete(req.params.id);
     res.json({ success: true });
@@ -146,7 +159,7 @@ router.delete("/:id", auth.requireAuth, async (req, res) => {
 
  
 router.post('/:id/publish', auth.requireAuth, async (req, res) => {
-  if (!req.user || req.user.role !== 'admin') return res.status(403).json({ error: 'Brak uprawnień' });
+  if (!req.user) return res.status(403).json({ error: 'Brak uprawnień' });
   try {
     const survey = await Survey.findById(req.params.id);
     if (!survey) return res.status(404).json({ error: 'Ankieta nie istnieje' });
@@ -162,7 +175,7 @@ router.post('/:id/publish', auth.requireAuth, async (req, res) => {
 
  
 router.post('/:id/close', auth.requireAuth, async (req, res) => {
-  if (!req.user || req.user.role !== 'admin') return res.status(403).json({ error: 'Brak uprawnień' });
+  if (!req.user) return res.status(403).json({ error: 'Brak uprawnień' });
   try {
     const survey = await Survey.findById(req.params.id);
     if (!survey) return res.status(404).json({ error: 'Ankieta nie istnieje' });
@@ -177,7 +190,7 @@ router.post('/:id/close', auth.requireAuth, async (req, res) => {
 
  
 router.post('/:id/archive', auth.requireAuth, async (req, res) => {
-  if (!req.user || req.user.role !== 'admin') return res.status(403).json({ error: 'Brak uprawnień' });
+  if (!req.user) return res.status(403).json({ error: 'Brak uprawnień' });
   try {
     const survey = await Survey.findById(req.params.id);
     if (!survey) return res.status(404).json({ error: 'Ankieta nie istnieje' });
@@ -192,7 +205,7 @@ router.post('/:id/archive', auth.requireAuth, async (req, res) => {
 
  
 router.delete('/:id/responses', auth.requireAuth, async (req, res) => {
-  if (!req.user || req.user.role !== 'admin') return res.status(403).json({ error: 'Brak uprawnień' });
+  if (!req.user) return res.status(403).json({ error: 'Brak uprawnień' });
   try {
     const Response = require('../models/Response');
     await Response.deleteMany({ survey: req.params.id });

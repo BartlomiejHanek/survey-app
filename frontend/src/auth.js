@@ -36,4 +36,3 @@ export function clearAuth() {
 }
 
 export function isLoggedIn() { return !!getToken(); }
-export function isAdmin() { const u = getUser(); return u && u.role === 'admin'; }

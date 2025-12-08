@@ -12,12 +12,18 @@ router.post("/:surveyId", authMiddleware.optionalAuth, async (req, res) => {
     if (!survey) return res.status(404).json({ error: "Ankieta nie istnieje" });
 
     const now = new Date();
-    if (survey.validUntil && now > survey.validUntil) {
-      if (survey.status !== 'closed') {
-        survey.status = 'closed';
-        try { await survey.save(); } catch (e) { }
+    if (survey.validUntil) {
+      const validUntilDate = new Date(survey.validUntil);
+      const nowMs = now.getTime();
+      const untilMs = validUntilDate.getTime();
+      if (nowMs > untilMs) {
+        console.warn(`Attempt to submit after expiry: survey=${survey._id} now=${now.toISOString()} validUntil=${validUntilDate.toISOString()} status=${survey.status}`);
+        if (survey.status !== 'closed') {
+          survey.status = 'closed';
+          try { await survey.save(); } catch (e) { console.error('Failed to save closed status', e); }
+        }
+        return res.status(400).json({ error: 'Ankieta wygasła' });
       }
-      return res.status(400).json({ error: 'Ankieta wygasła' });
     }
     if (survey.validFrom && now < survey.validFrom) return res.status(400).json({ error: 'Ankieta jeszcze nie aktywna' });
     if (survey.status !== 'published') return res.status(400).json({ error: 'Ankieta nie jest opublikowana' });
@@ -40,7 +46,10 @@ router.post("/:surveyId", authMiddleware.optionalAuth, async (req, res) => {
 
     
     if (req.user && survey.author && String(req.user.id) === String(survey.author)) {
-      return res.status(403).json({ error: 'Autor ankiety nie może wypełniać swojej ankiety' });
+      const isPreviewSubmission = (req.body && req.body.preview) || (req.query && req.query.preview === '1');
+      if (isPreviewSubmission) {
+        return res.status(403).json({ error: 'W trybie podglądu wysyłanie odpowiedzi jest zabronione' });
+      }
     }
 
     
