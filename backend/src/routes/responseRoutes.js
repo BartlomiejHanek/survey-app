@@ -170,7 +170,8 @@ router.get("/:surveyId/export", async (req, res) => {
 
     if (!survey) return res.status(404).json({ error: "Ankieta nie istnieje" });
 
-    let csv = "";
+    // Dodaj BOM, aby Excel/edytory poprawnie czytały UTF-8 i polskie znaki
+    let csv = "\uFEFF";
 
     const headers = survey.questions.map(q => q.text);
     csv += headers.join(";") + "\n";
@@ -189,7 +190,7 @@ router.get("/:surveyId/export", async (req, res) => {
       csv += row.join(";") + "\n";
     });
 
-    res.setHeader("Content-Type", "text/csv");
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
     res.setHeader("Content-Disposition", `attachment; filename=survey_${survey._id}.csv`);
     res.send(csv);
   } catch (err) {
