@@ -127,8 +127,7 @@ export default function SurveyEditor() {
       const finalId = getSurveyId(returned) || sid;
       setSurvey(prev => ({ ...prev, status: 'published', id: finalId, _id: finalId }));
       const link = `${window.location.origin}/survey/${finalId}`;
-      try { await navigator.clipboard.writeText(link); } catch (e) {}
-      setNotification({ message: `Ankieta opublikowana. Link skopiowany: ${link}`, type: 'success' });
+      setNotification({ message: `Ankieta opublikowana. Link: ${link}`, type: 'success', copyText: link });
     } catch (err) { 
       console.error(err); 
       setNotification({ message: 'Błąd publikacji', type: 'error' });
@@ -212,6 +211,18 @@ export default function SurveyEditor() {
           message={notification.message}
           type={notification.type}
           onClose={() => setNotification(null)}
+          actionLabel={notification.copyText ? 'Skopiuj link' : undefined}
+          onAction={
+            notification.copyText
+              ? async () => {
+                  try {
+                    await navigator.clipboard.writeText(notification.copyText);
+                  } catch (e) {
+                    console.error(e);
+                  }
+                }
+              : undefined
+          }
         />
       )}
       <div className="min-h-screen bg-gray-50">
@@ -338,13 +349,30 @@ export default function SurveyEditor() {
                             setNotification({ message: 'Zapisz najpierw ankietę', type: 'error' });
                             return;
                           }
+
+                          // Jeśli nie jest zaznaczone jednorazowe wypełnienie,
+                          // pokaż zwykły link bez tokena i nielimitowaną liczbą odpowiedzi.
+                          if (!survey.singleResponse) {
+                            const link = `${window.location.origin}/survey/${sid}`;
+                            setNotification({
+                              message: `Link do ankiety: ${link}`,
+                              type: 'success',
+                              copyText: link
+                            });
+                            return;
+                          }
+
+                          // Dla ankiet z jednorazowym wypełnieniem generujemy token.
                           try {
                             const res = await createInvite(sid, 1, null);
                             const token = res && res.invite && res.invite.token;
                             const link = `${window.location.origin}/survey/${sid}?t=${token}`;
-                            try { await navigator.clipboard.writeText(link); } catch (e) {}
                             setLastInvite({ token, link });
-                            setNotification({ message: `Utworzono zaproszenie. Link skopiowany: ${link}`, type: 'success' });
+                            setNotification({
+                              message: `Utworzono zaproszenie (jednorazowy link): ${link}`,
+                              type: 'success',
+                              copyText: link
+                            });
                           } catch (err) { 
                             console.error(err); 
                             setNotification({ message: 'Błąd tworzenia zaproszenia', type: 'error' });
@@ -626,14 +654,47 @@ export default function SurveyEditor() {
         <input type="file" accept="image/*" ref={fileInputRef} style={{ display: 'none' }} onChange={onFileSelected} />
 
         {!isArchived && (
-          <div className="mt-6">
-            <button 
-              onClick={addQuestion} 
-              className="bg-gray-900 hover:bg-gray-800 text-white py-3 px-6 text-sm font-medium rounded-lg transition-colors shadow-sm"
-            >
-              + Dodaj nowe pytanie
-            </button>
-          </div>
+          <>
+            <div className="mt-6">
+              <button 
+                onClick={addQuestion} 
+                className="bg-gray-900 hover:bg-gray-800 text-white py-3 px-6 text-sm font-medium rounded-lg transition-colors shadow-sm"
+              >
+                + Dodaj nowe pytanie
+              </button>
+            </div>
+
+            {/* Dolny pasek akcji – żeby nie trzeba było scrollować do góry */}
+            <div className="mt-8 pt-5 border-t border-gray-200 flex flex-wrap gap-2 justify-end items-center">
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={save}
+                  className="bg-gray-900 hover:bg-gray-800 text-white py-2.5 px-5 text-sm font-medium rounded-lg transition-colors shadow-sm"
+                >
+                  Zapisz
+                </button>
+                <button
+                  onClick={async () => {
+                    try {
+                      if (!getSurveyId(survey)) {
+                        const res = await saveSurvey(survey);
+                        const sid = getSurveyId(res);
+                        if (sid) setSurvey(prev => ({ ...prev, id: sid, _id: sid }));
+                      }
+                      const sid = getSurveyId(survey) || getSurveyId(await saveSurvey(survey));
+                      window.open(`${window.location.origin}/survey/${sid}?preview=1`, '_blank');
+                    } catch (err) {
+                      console.error(err);
+                      setNotification({ message: 'Błąd podglądu', type: 'error' });
+                    }
+                  }}
+                  className="bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 py-2.5 px-5 text-sm font-medium rounded-lg transition-colors shadow-sm"
+                >
+                  Podgląd
+                </button>
+              </div>
+            </div>
+          </>
         )}
       </div>
     </div>

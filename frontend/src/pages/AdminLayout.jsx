@@ -46,6 +46,19 @@ export default function AdminLayout() {
             <span>Lista ankiet</span>
           </Link>
           <Link 
+            to="/admin/questions" 
+            className={`flex items-center gap-3 px-3 py-2.5 text-sm rounded-lg transition-all ${
+              isActive('/admin/questions') 
+                ? 'bg-gray-100 text-gray-900 font-medium' 
+                : 'text-gray-600 hover:bg-gray-50'
+            }`}
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6-4h6m-6 8h6M5 6h14a1 1 0 011 1v10a1 1 0 01-1 1H5a1 1 0 01-1-1V7a1 1 0 011-1z" />
+            </svg>
+            <span>Pytania</span>
+          </Link>
+          <Link 
             to="/admin/edit/new" 
             className={`flex items-center gap-3 px-3 py-2.5 text-sm rounded-lg transition-all ${
               location.pathname.includes('/admin/edit') 
@@ -82,7 +95,8 @@ export default function AdminLayout() {
           <h2 className="text-lg font-semibold text-gray-900">
             {location.pathname === '/admin' ? 'Lista ankiet' : 
              location.pathname.includes('/edit') ? 'Edytor ankiety' :
-             location.pathname.includes('/stats') ? 'Statystyki' : 'Panel'}
+             location.pathname.includes('/stats') ? 'Statystyki' :
+             location.pathname.includes('/questions') ? 'Pytania' : 'Panel'}
           </h2>
         </div>
         <main className="flex-1 overflow-auto bg-gray-50 p-6">

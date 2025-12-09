@@ -7,6 +7,7 @@ import SurveyStats from './pages/SurveyStats';
 import SurveyForm from './pages/SurveyForm';
 import Login from './pages/Login';
 import PublicSurveys from './pages/PublicSurveys';
+import QuestionsManager from './pages/QuestionsManager';
  
 import { getToken, getUser, isRemembered } from './auth';
 
@@ -34,6 +35,7 @@ export default function App() {
         <Route index element={<SurveyList />} />
         <Route path="edit/:id" element={<SurveyEditor />} />
         <Route path="stats/:id" element={<SurveyStats />} />
+        <Route path="questions" element={<QuestionsManager />} />
       </Route>
       <Route path="/surveys" element={<PublicSurveys />} />
       <Route path="/login" element={<Login />} />

@@ -1,6 +1,13 @@
 import React, { useEffect } from 'react';
 
-export default function Notification({ message, type = 'success', onClose, duration = 4000 }) {
+export default function Notification({
+  message,
+  type = 'success',
+  onClose,
+  duration = 4000,
+  actionLabel,
+  onAction
+}) {
   useEffect(() => {
     if (duration > 0) {
       const timer = setTimeout(() => {
@@ -21,7 +28,7 @@ export default function Notification({ message, type = 'success', onClose, durat
         className="fixed inset-0 bg-black bg-opacity-30 transition-opacity"
         onClick={onClose}
       />
-      <div className={`relative ${bgColor} border rounded-lg shadow-lg p-6 max-w-md w-full`}>
+      <div className={`relative ${bgColor} border rounded-lg shadow-lg p-6 max-w-lg w-full`}>
         <div className="flex items-start gap-4">
           <div className={`flex-shrink-0 ${iconColor}`}>
             {type === 'error' ? (
@@ -34,8 +41,10 @@ export default function Notification({ message, type = 'success', onClose, durat
               </svg>
             )}
           </div>
-          <div className="flex-1">
-            <p className={`text-base font-medium ${textColor}`}>{message}</p>
+          <div className="flex-1 min-w-0">
+            <p className={`text-sm sm:text-base font-medium ${textColor} break-words break-all whitespace-pre-wrap`}>
+              {message}
+            </p>
           </div>
           <button
             onClick={onClose}
@@ -46,7 +55,15 @@ export default function Notification({ message, type = 'success', onClose, durat
             </svg>
           </button>
         </div>
-        <div className="mt-4 flex justify-end">
+        <div className="mt-4 flex justify-end gap-2">
+          {actionLabel && onAction && (
+            <button
+              onClick={onAction}
+              className={`bg-white border border-gray-300 text-gray-800 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors`}
+            >
+              {actionLabel}
+            </button>
+          )}
           <button
             onClick={onClose}
             className={`${buttonColor} text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors`}

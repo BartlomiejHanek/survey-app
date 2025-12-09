@@ -37,10 +37,7 @@ export default function SurveyList() {
       const savedId = getSurveyId(returned) || targetId;
       updateSurvey(targetId, () => ({ status: 'published', id: savedId, _id: savedId }));
       const link = `${window.location.origin}/survey/${savedId}`;
-      try {
-        await navigator.clipboard.writeText(link);
-      } catch (e) {}
-      setNotification({ message: `Ankieta opublikowana. Link skopiowany: ${link}`, type: 'success' });
+      setNotification({ message: `Ankieta opublikowana. Link: ${link}`, type: 'success', copyText: link });
     } catch (err) {
       console.error(err);
       setNotification({ message: 'Błąd publikacji', type: 'error' });
@@ -86,6 +83,18 @@ export default function SurveyList() {
           message={notification.message}
           type={notification.type}
           onClose={() => setNotification(null)}
+          actionLabel={notification.copyText ? 'Skopiuj link' : undefined}
+          onAction={
+            notification.copyText
+              ? async () => {
+                  try {
+                    await navigator.clipboard.writeText(notification.copyText);
+                  } catch (e) {
+                    console.error(e);
+                  }
+                }
+              : undefined
+          }
         />
       )}
       <div className="max-w-6xl">
@@ -166,6 +175,20 @@ export default function SurveyList() {
                       onClick={() => handleClose(s)}
                     >
                       Zamknij
+                    </button>
+                    <span className="text-gray-300">•</span>
+                    <button
+                      className="text-sm text-gray-700 hover:text-gray-900 font-medium"
+                      onClick={() => {
+                        const link = `${window.location.origin}/survey/${getSurveyId(s)}`;
+                        setNotification({
+                          message: `Link do ankiety: ${link}`,
+                          type: 'success',
+                          copyText: link
+                        });
+                      }}
+                    >
+                      Link
                     </button>
                   </>
                 )}
