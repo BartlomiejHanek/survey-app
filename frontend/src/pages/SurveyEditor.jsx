@@ -7,12 +7,16 @@ import { isLoggedIn } from '../auth';
 import { useNavigate } from 'react-router-dom';
 import { getSurveyId } from '../utils/surveys';
 import Notification from '../components/Notification';
+import QuestionPickerModal from '../components/QuestionPickerModal';
+import { saveQuestion } from '../api/apiClient';
 
 export default function SurveyEditor() {
   const { id } = useParams();
   const [survey, setSurvey] = useState({ title: '', description: '', status: 'draft', questions: [] });
   const [lastInvite, setLastInvite] = useState(null);
   const [notification, setNotification] = useState(null);
+  const [showQuestionPicker, setShowQuestionPicker] = useState(false);
+  const [savedQuestionIds, setSavedQuestionIds] = useState(new Set());
 
   const navigate = useNavigate();
 
@@ -66,6 +70,40 @@ export default function SurveyEditor() {
   const addQuestion = () => {
     const newQuestion = { id: Date.now().toString(), type: 'text', title: '', required: false, options: [] };
     setSurvey({ ...survey, questions: [...survey.questions, newQuestion] });
+  };
+
+  const handleAddFromSaved = (selectedQuestions) => {
+    const newQuestions = selectedQuestions.map(q => ({
+      id: Date.now().toString() + Math.random(),
+      type: q.type,
+      title: q.title,
+      required: q.required || false,
+      options: q.options ? q.options.map(o => typeof o === 'string' ? o : o.text || '') : [],
+      scale: q.scale || null,
+      imageUrl: q.imageUrl || null
+    }));
+    setSurvey({ ...survey, questions: [...survey.questions, ...newQuestions] });
+    setShowQuestionPicker(false);
+    setNotification({ message: `Dodano ${newQuestions.length} ${newQuestions.length === 1 ? 'pytanie' : 'pytań'} do ankiety`, type: 'success' });
+  };
+
+  const handleSaveToLibrary = async (question, index) => {
+    try {
+      const questionData = {
+        title: question.title || '',
+        type: question.type || 'text',
+        required: question.required || false,
+        options: question.options || [],
+        scale: question.scale || null,
+        imageUrl: question.imageUrl || null
+      };
+      await saveQuestion(questionData);
+      setSavedQuestionIds(new Set([...savedQuestionIds, question.id]));
+      setNotification({ message: 'Pytanie zapisane do bazy', type: 'success' });
+    } catch (err) {
+      console.error('Error saving question to library:', err);
+      setNotification({ message: 'Błąd zapisu pytania do bazy', type: 'error' });
+    }
   };
 
   const removeQuestion = (index) => {
@@ -630,7 +668,20 @@ export default function SurveyEditor() {
                           </div>
                         )}
 
-                        <div>
+                        <div className="flex gap-2">
+                          {!savedQuestionIds.has(q.id) && (
+                            <button 
+                              className="text-sm text-gray-600 hover:text-gray-900 font-medium px-3 py-1.5 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" 
+                              onClick={() => handleSaveToLibrary(q, index)}
+                              disabled={isArchived}
+                              title="Zapisz do bazy pytań"
+                            >
+                              💾 Zapisz do bazy
+                            </button>
+                          )}
+                          {savedQuestionIds.has(q.id) && (
+                            <span className="text-sm text-gray-500 px-3 py-1.5">✓ Zapisane</span>
+                          )}
                           <button 
                             className="text-sm text-red-600 hover:text-red-700 font-medium px-3 py-1.5 border border-red-300 rounded-lg hover:bg-red-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" 
                             onClick={() => removeQuestion(index)}
@@ -655,12 +706,18 @@ export default function SurveyEditor() {
 
         {!isArchived && (
           <>
-            <div className="mt-6">
+            <div className="mt-6 flex gap-3">
               <button 
                 onClick={addQuestion} 
                 className="bg-gray-900 hover:bg-gray-800 text-white py-3 px-6 text-sm font-medium rounded-lg transition-colors shadow-sm"
               >
                 + Dodaj nowe pytanie
+              </button>
+              <button 
+                onClick={() => setShowQuestionPicker(true)}
+                className="bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 py-3 px-6 text-sm font-medium rounded-lg transition-colors shadow-sm"
+              >
+                + Dodaj z zapisanych pytań
               </button>
             </div>
 
@@ -698,6 +755,13 @@ export default function SurveyEditor() {
         )}
       </div>
     </div>
+    
+    {/* Modal wyboru pytań z bazy */}
+    <QuestionPickerModal
+      onSelect={handleAddFromSaved}
+      onClose={() => setShowQuestionPicker(false)}
+      isOpen={showQuestionPicker}
+    />
     </>
   );
 }

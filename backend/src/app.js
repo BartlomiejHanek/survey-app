@@ -8,6 +8,7 @@ const surveyRoutes = require("./routes/surveyRoutes");
 const responseRoutes = require("./routes/responseRoutes");
 const authRoutes = require("./auth/authRoutes");
 const inviteRoutes = require('./routes/inviteRoutes');
+const questionRoutes = require('./routes/questionRoutes');
 
 const app = express();
 app.use(cors());
@@ -19,6 +20,7 @@ app.use("/api/surveys", surveyRoutes);
 app.use("/api/responses", responseRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/invites', inviteRoutes);
+app.use('/api/questions', questionRoutes);
 
 app.use((err, req, res, next) => {
   console.error('Express error:', err);

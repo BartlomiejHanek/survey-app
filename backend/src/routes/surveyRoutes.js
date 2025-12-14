@@ -6,11 +6,14 @@ const Survey = require("../models/Survey");
 const auth = require('../auth/authMiddleware');
 
  
-router.get("/", async (req, res) => {
+router.get("/", auth.requireAuth, async (req, res) => {
+  if (!req.user) return res.status(403).json({ error: 'Brak uprawnień' });
   try {
-    const surveys = await Survey.find().sort({ createdAt: -1 });
+    // Pobierz tylko ankiety użytkownika
+    const surveys = await Survey.find({ author: req.user.id }).sort({ createdAt: -1 });
     res.json(surveys);
   } catch (err) {
+    console.error('Error fetching surveys:', err);
     res.status(500).json({ error: "Błąd podczas pobierania ankiet" });
   }
 });
@@ -108,6 +111,12 @@ router.put("/:id", auth.requireAuth, async (req, res) => {
   try {
     const existingSurvey = await Survey.findById(req.params.id);
     if (!existingSurvey) return res.status(404).json({ error: 'Ankieta nie istnieje' });
+    
+    // Sprawdź czy użytkownik jest autorem
+    if (existingSurvey.author && String(existingSurvey.author) !== String(req.user.id)) {
+      return res.status(403).json({ error: 'Brak uprawnień do edycji tej ankiety' });
+    }
+    
     if (existingSurvey.status === 'archived') {
       return res.status(403).json({ error: 'Nie można edytować zarchiwizowanej ankiety. Najpierw przywróć ankietę.' });
     }
@@ -157,9 +166,18 @@ router.put("/:id", auth.requireAuth, async (req, res) => {
 router.delete("/:id", auth.requireAuth, async (req, res) => {
   if (!req.user) return res.status(403).json({ error: 'Brak uprawnień' });
   try {
+    const survey = await Survey.findById(req.params.id);
+    if (!survey) return res.status(404).json({ error: 'Ankieta nie istnieje' });
+    
+    // Sprawdź czy użytkownik jest autorem
+    if (survey.author && String(survey.author) !== String(req.user.id)) {
+      return res.status(403).json({ error: 'Brak uprawnień do usunięcia tej ankiety' });
+    }
+    
     await Survey.findByIdAndDelete(req.params.id);
     res.json({ success: true });
-  } catch {
+  } catch (err) {
+    console.error('Error deleting survey:', err);
     res.status(500).json({ error: "Nie udało się usunąć ankiety" });
   }
 });
@@ -170,6 +188,12 @@ router.post('/:id/publish', auth.requireAuth, async (req, res) => {
   try {
     const survey = await Survey.findById(req.params.id);
     if (!survey) return res.status(404).json({ error: 'Ankieta nie istnieje' });
+    
+    // Sprawdź czy użytkownik jest autorem
+    if (survey.author && String(survey.author) !== String(req.user.id)) {
+      return res.status(403).json({ error: 'Brak uprawnień do publikacji tej ankiety' });
+    }
+    
     survey.status = 'published';
     survey.publishedAt = new Date();
     await survey.save();
@@ -186,6 +210,12 @@ router.post('/:id/close', auth.requireAuth, async (req, res) => {
   try {
     const survey = await Survey.findById(req.params.id);
     if (!survey) return res.status(404).json({ error: 'Ankieta nie istnieje' });
+    
+    // Sprawdź czy użytkownik jest autorem
+    if (survey.author && String(survey.author) !== String(req.user.id)) {
+      return res.status(403).json({ error: 'Brak uprawnień do zamknięcia tej ankiety' });
+    }
+    
     survey.status = 'closed';
     await survey.save();
     res.json({ success: true, survey });
@@ -201,6 +231,12 @@ router.post('/:id/archive', auth.requireAuth, async (req, res) => {
   try {
     const survey = await Survey.findById(req.params.id);
     if (!survey) return res.status(404).json({ error: 'Ankieta nie istnieje' });
+    
+    // Sprawdź czy użytkownik jest autorem
+    if (survey.author && String(survey.author) !== String(req.user.id)) {
+      return res.status(403).json({ error: 'Brak uprawnień do archiwizacji tej ankiety' });
+    }
+    
     survey.status = 'archived';
     await survey.save();
     res.json({ success: true, survey });
@@ -215,6 +251,12 @@ router.post('/:id/unarchive', auth.requireAuth, async (req, res) => {
   try {
     const survey = await Survey.findById(req.params.id);
     if (!survey) return res.status(404).json({ error: 'Ankieta nie istnieje' });
+    
+    // Sprawdź czy użytkownik jest autorem
+    if (survey.author && String(survey.author) !== String(req.user.id)) {
+      return res.status(403).json({ error: 'Brak uprawnień do przywrócenia tej ankiety' });
+    }
+    
     if (survey.status !== 'archived') return res.status(400).json({ error: 'Ankieta nie jest zarchiwizowana' });
     // Przywróć do poprzedniego statusu lub draft
     survey.status = survey.publishedAt ? 'published' : 'draft';
@@ -230,6 +272,14 @@ router.post('/:id/unarchive', auth.requireAuth, async (req, res) => {
 router.delete('/:id/responses', auth.requireAuth, async (req, res) => {
   if (!req.user) return res.status(403).json({ error: 'Brak uprawnień' });
   try {
+    const survey = await Survey.findById(req.params.id);
+    if (!survey) return res.status(404).json({ error: 'Ankieta nie istnieje' });
+    
+    // Sprawdź czy użytkownik jest autorem
+    if (survey.author && String(survey.author) !== String(req.user.id)) {
+      return res.status(403).json({ error: 'Brak uprawnień do usunięcia odpowiedzi tej ankiety' });
+    }
+    
     const Response = require('../models/Response');
     await Response.deleteMany({ survey: req.params.id });
     res.json({ success: true });

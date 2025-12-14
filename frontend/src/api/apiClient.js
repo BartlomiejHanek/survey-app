@@ -106,6 +106,38 @@ export async function resumeDraft(resumeToken) {
   return request('get', `/api/responses/resume/${resumeToken}`);
 }
 
- 
+// Saved Questions API
+export async function fetchSavedQuestions(filters = {}) {
+  const params = new URLSearchParams();
+  if (filters.search) params.append('search', filters.search);
+  if (filters.type) params.append('type', filters.type);
+  if (filters.favorite) params.append('favorite', 'true');
+  if (filters.sort) params.append('sort', filters.sort);
+  return request('get', `/api/questions?${params}`);
+}
+
+export async function fetchSavedQuestionById(id) {
+  return request('get', `/api/questions/${id}`);
+}
+
+export async function saveQuestion(question) {
+  return request('post', '/api/questions', question);
+}
+
+export async function updateQuestion(id, question) {
+  return request('put', `/api/questions/${id}`, question);
+}
+
+export async function deleteQuestion(id) {
+  return request('delete', `/api/questions/${id}`);
+}
+
+export async function toggleFavorite(id) {
+  return request('patch', `/api/questions/${id}/favorite`);
+}
+
+export async function reorderQuestions(questionIds) {
+  return request('put', '/api/questions/reorder', { order: questionIds });
+}
 
 export default API;
