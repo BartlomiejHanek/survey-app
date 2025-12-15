@@ -676,7 +676,7 @@ export default function SurveyEditor() {
                               disabled={isArchived}
                               title="Zapisz do bazy pytań"
                             >
-                              💾 Zapisz do bazy
+                              Zapisz do bazy
                             </button>
                           )}
                           {savedQuestionIds.has(q.id) && (
