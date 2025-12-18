@@ -50,7 +50,7 @@ const SavedQuestionSchema = new mongoose.Schema({
     default: 0 
   }
 }, {
-  timestamps: true // Automatycznie dodaje createdAt i updatedAt
+  timestamps: true
 });
 
 module.exports = mongoose.model('SavedQuestion', SavedQuestionSchema);

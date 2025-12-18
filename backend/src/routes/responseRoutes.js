@@ -163,14 +163,17 @@ router.get("/:surveyId", async (req, res) => {
 });
 
  
-router.get("/:surveyId/export", async (req, res) => {
+router.get("/:surveyId/export", authMiddleware.requireAuth, async (req, res) => {
   try {
     const survey = await Survey.findById(req.params.surveyId);
-    const responses = await Response.find({ survey: req.params.surveyId });
-
     if (!survey) return res.status(404).json({ error: "Ankieta nie istnieje" });
 
-    // Dodaj BOM, aby Excel/edytory poprawnie czytały UTF-8 i polskie znaki
+    if (survey.author && String(survey.author) !== String(req.user.id)) {
+      return res.status(403).json({ error: 'Brak uprawnień do eksportu odpowiedzi tej ankiety' });
+    }
+
+    const responses = await Response.find({ survey: req.params.surveyId });
+
     let csv = "\uFEFF";
 
     const headers = survey.questions.map(q => q.text);

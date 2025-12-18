@@ -239,31 +239,7 @@ export default function SurveyStats() {
               }
               
               if (q.type === 'scale') {
-                return (
-                  <div className="space-y-3">
-                    <BarChart data={entries} />
-                    <div className="mt-4 pt-4 border-t border-gray-200">
-                      <table className="w-full text-left">
-                        <thead>
-                          <tr className="border-b border-gray-300">
-                            <th className="pb-2 text-sm font-semibold text-gray-700">Wartość</th>
-                            <th className="pb-2 text-sm font-semibold text-gray-700 text-right">Liczba</th>
-                            <th className="pb-2 text-sm font-semibold text-gray-700 text-right">% z całości</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {entries.map(e => (
-                            <tr key={e.label} className="border-b border-gray-100 hover:bg-gray-50">
-                              <td className="py-2 font-medium text-gray-800">{e.label}</td>
-                              <td className="py-2 text-right font-semibold text-gray-700">{e.value}</td>
-                              <td className="py-2 text-right text-gray-600">{total > 0 ? ((e.value/total)*100).toFixed(1) : '0.0'}%</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                );
+                return <BarChart data={entries} />;
               }
               
               return (

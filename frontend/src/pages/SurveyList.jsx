@@ -1,17 +1,22 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { fetchSurveys, publishSurvey, closeSurvey, deleteSurvey } from '../api/apiClient';
+import { fetchSurveys, publishSurvey, closeSurvey, deleteSurvey, createInvite } from '../api/apiClient';
 import { getSurveyId, statusLabel } from '../utils/surveys';
 import Notification from '../components/Notification';
 
 export default function SurveyList() {
   const [surveys, setSurveys] = useState([]);
   const [notification, setNotification] = useState(null);
+  const [filters, setFilters] = useState({
+    search: '',
+    status: '',
+    sort: 'newest'
+  });
 
   useEffect(() => {
     async function load() {
       try {
-        const data = await fetchSurveys();
+        const data = await fetchSurveys(filters);
         setSurveys(data);
       } catch (err) {
         console.error('Błąd pobierania ankiet', err);
@@ -19,7 +24,7 @@ export default function SurveyList() {
       }
     }
     load();
-  }, []);
+  }, [filters]);
 
   const updateSurvey = (id, updater) =>
     setSurveys((prev) =>
@@ -110,6 +115,39 @@ export default function SurveyList() {
         </Link>
       </div>
 
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
+        <div className="flex gap-3 flex-wrap">
+          <input
+            type="text"
+            placeholder="🔍 Wyszukaj ankiety..."
+            value={filters.search}
+            onChange={e => setFilters({ ...filters, search: e.target.value })}
+            className="flex-1 min-w-[200px] p-2.5 border border-gray-300 rounded-lg focus:border-gray-900 focus:ring-1 focus:ring-gray-900 focus:outline-none transition-all"
+          />
+          <select
+            value={filters.status}
+            onChange={e => setFilters({ ...filters, status: e.target.value })}
+            className="p-2.5 border border-gray-300 rounded-lg focus:border-gray-900 focus:ring-1 focus:ring-gray-900 focus:outline-none transition-all"
+          >
+            <option value="">Wszystkie statusy</option>
+            <option value="draft">Robocza</option>
+            <option value="published">Opublikowana</option>
+            <option value="closed">Zamknięta</option>
+            <option value="archived">Zarchiwizowana</option>
+          </select>
+          <select
+            value={filters.sort}
+            onChange={e => setFilters({ ...filters, sort: e.target.value })}
+            className="p-2.5 border border-gray-300 rounded-lg focus:border-gray-900 focus:ring-1 focus:ring-gray-900 focus:outline-none transition-all"
+          >
+            <option value="newest">Najnowsze</option>
+            <option value="oldest">Najstarsze</option>
+            <option value="alphabetical">Alfabetycznie A-Z</option>
+            <option value="alphabetical-desc">Alfabetycznie Z-A</option>
+          </select>
+        </div>
+      </div>
+
       {surveys.length === 0 ? (
         <div className="bg-white border border-gray-200 rounded-lg p-12 text-center">
           <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -176,22 +214,34 @@ export default function SurveyList() {
                     >
                       Zamknij
                     </button>
-                    <span className="text-gray-300">•</span>
-                    <button
-                      className="text-sm text-gray-700 hover:text-gray-900 font-medium"
-                      onClick={() => {
-                        const link = `${window.location.origin}/survey/${getSurveyId(s)}`;
-                        setNotification({
-                          message: `Link do ankiety: ${link}`,
-                          type: 'success',
-                          copyText: link
-                        });
-                      }}
-                    >
-                      Link
-                    </button>
                   </>
                 )}
+                <span className="text-gray-300">•</span>
+                <button 
+                  className={`text-sm font-medium ${s.status === 'published' ? 'text-gray-700 hover:text-gray-900' : 'text-gray-400 cursor-not-allowed'}`}
+                  onClick={async () => {
+                    if (s.status !== 'published') return;
+                    const sid = getSurveyId(s);
+                    if (!sid) return;
+                    
+                    try {
+                      let link = `${window.location.origin}/survey/${sid}`;
+                      if (s.singleResponse) {
+                        const res = await createInvite(sid, 1, null, 1);
+                        const token = res && res.invite && res.invite.token;
+                        if (token) link += `?t=${token}`;
+                      }
+                      await navigator.clipboard.writeText(link);
+                      setNotification({ message: 'Link skopiowany do schowka', type: 'success' });
+                    } catch (err) {
+                      console.error(err);
+                      setNotification({ message: 'Błąd kopiowania linku', type: 'error' });
+                    }
+                  }}
+                  disabled={s.status !== 'published'}
+                >
+                  Kopiuj link
+                </button>
                 <span className="text-gray-300">•</span>
                 <button 
                   className="text-sm text-gray-700 hover:text-gray-900 font-medium"
@@ -241,7 +291,7 @@ export default function SurveyList() {
                         to={`/admin/edit/${getSurveyId(s)}`}
                         className="text-sm text-gray-700 hover:text-gray-900 font-medium"
                       >
-                        Podgląd
+                        Opcje
                       </Link>
                     </div>
                   </div>

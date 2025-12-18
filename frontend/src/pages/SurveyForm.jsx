@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { fetchSurveyById, submitResponse, saveDraftResponse, resumeDraft } from '../api/apiClient';
+import { fetchSurveyById, submitResponse, saveDraftResponse, resumeDraft, validateInviteToken } from '../api/apiClient';
+import { getSurveyId } from '../utils/surveys';
 import { useLocation } from 'react-router-dom';
 import Notification from '../components/Notification';
 
@@ -25,6 +26,29 @@ export default function SurveyForm() {
         const data = await fetchSurveyById(id);
         setSurvey(data);
         
+        // Walidacja tokena przed załadowaniem formularza
+        if (data && data.singleResponse && inviteTokenFromUrl) {
+          try {
+            const validation = await validateInviteToken(inviteTokenFromUrl);
+            const surveyId = getSurveyId(data);
+            const inviteSurveyId = getSurveyId(validation.invite?.survey) || validation.invite?.survey;
+            if (!validation.valid || String(inviteSurveyId) !== String(surveyId)) {
+              setNotification({ message: validation.error || 'Nieprawidłowy token zaproszenia', type: 'error' });
+              setLoading(false);
+              return;
+            }
+          } catch (err) {
+            const errorMsg = err?.response?.data?.error || 'Nieprawidłowy token zaproszenia';
+            setNotification({ message: errorMsg, type: 'error' });
+            setLoading(false);
+            return;
+          }
+        } else if (data && data.singleResponse && !inviteTokenFromUrl) {
+          setNotification({ message: 'Ta ankieta wymaga tokena zaproszenia (jednorazowe wypełnienie)', type: 'error' });
+          setLoading(false);
+          return;
+        }
+        
         const initial = {};
         (data?.questions || []).forEach(q => {
           if (q.type === 'checkbox') initial[q.id] = [];
@@ -47,12 +71,14 @@ export default function SurveyForm() {
         
       } catch (err) {
         console.error(err);
+        const errorMsg = err?.response?.data?.error || 'Błąd ładowania ankiety';
+        setNotification({ message: errorMsg, type: 'error' });
       } finally {
         setLoading(false);
       }
     }
     if (id) load();
-  }, [id]);
+  }, [id, inviteTokenFromUrl]);
 
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -154,7 +180,8 @@ export default function SurveyForm() {
     </div>
   );
   
-  if (survey.status === 'archived') {
+  // Sprawdź czy ankieta jest zarchiwizowana - tylko dla normalnych użytkowników (nie w trybie podglądu)
+  if (survey.status === 'archived' && !previewMode) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-10 max-w-md text-center">

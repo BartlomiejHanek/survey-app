@@ -1,13 +1,22 @@
 const Response = require("../models/Response");
 
+const normalizeAnswers = (answers) => {
+  if (Array.isArray(answers)) {
+    return answers.map(a => ({ questionId: a.questionId || a.question, value: a.value }));
+  } else if (answers && typeof answers === 'object') {
+    return Object.keys(answers).map(qId => ({ questionId: qId, value: answers[qId] }));
+  }
+  return [];
+};
+
+const handleError = (res, err, message) => {
+  console.error(err);
+  res.status(500).json({ error: message });
+};
+
 exports.sendResponse = async (req, res) => {
   try {
-    let answers = [];
-    if (Array.isArray(req.body.answers)) {
-      answers = req.body.answers.map(a => ({ questionId: a.questionId || a.question, value: a.value }));
-    } else if (req.body.answers && typeof req.body.answers === 'object') {
-      answers = Object.keys(req.body.answers).map(qId => ({ questionId: qId, value: req.body.answers[qId] }));
-    }
+    const answers = normalizeAnswers(req.body.answers);
 
     const response = await Response.create({
       survey: req.params.surveyId,
@@ -19,8 +28,7 @@ exports.sendResponse = async (req, res) => {
     });
     res.json(response);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Błąd zapisu odpowiedzi' });
+    handleError(res, err, 'Błąd zapisu odpowiedzi');
   }
 };
 
@@ -29,7 +37,6 @@ exports.getResponses = async (req, res) => {
     const responses = await Response.find({ survey: req.params.surveyId });
     res.json(responses);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Błąd pobierania odpowiedzi' });
+    handleError(res, err, 'Błąd pobierania odpowiedzi');
   }
 };

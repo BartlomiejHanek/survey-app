@@ -1,6 +1,10 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
-const JWT_SECRET = process.env.JWT_SECRET || 'change_this_secret';
+
+if (!process.env.JWT_SECRET) {
+  throw new Error('JWT_SECRET nie jest zdefiniowane');
+}
+const JWT_SECRET = process.env.JWT_SECRET;
 
 exports.optionalAuth = async (req, res, next) => {
   const auth = req.get('Authorization') || req.get('authorization');
@@ -33,17 +37,5 @@ exports.requireAuth = async (req, res, next) => {
   } catch (err) {
     console.error('Auth error', err);
     return res.status(401).json({ error: 'Nieprawidłowy token' });
-  }
-};
-
-exports.requireAdmin = async (req, res, next) => {
-  try {
-    await exports.requireAuth(req, res, async () => {
-      if (!req.user) return res.status(401).json({ error: 'Brak uwierzytelnienia' });
-      return next();
-    });
-  } catch (err) {
-    console.error(err);
-    return res.status(500).json({ error: 'Błąd autoryzacji' });
   }
 };

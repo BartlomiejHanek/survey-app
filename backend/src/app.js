@@ -1,37 +1,48 @@
-const express = require("express");
-const cors = require("cors");
-const dotenv = require("dotenv");
-dotenv.config({ path: "./.env" });
+require('dotenv').config();
+const express = require('express');
+const cors = require('cors');
 
-const { connectDB } = require("./config/db.js");
-const surveyRoutes = require("./routes/surveyRoutes");
-const responseRoutes = require("./routes/responseRoutes");
-const authRoutes = require("./auth/authRoutes");
+const { connectDB } = require('./config/db');
+
+const surveyRoutes = require('./routes/surveyRoutes');
+const responseRoutes = require('./routes/responseRoutes');
+const authRoutes = require('./auth/authRoutes');
 const inviteRoutes = require('./routes/inviteRoutes');
 const questionRoutes = require('./routes/questionRoutes');
 
 const app = express();
+
 app.use(cors());
+app.use(express.json({ limit: '10mb' }));
 
-app.use(express.json({ limit: "10mb" }));
-app.use(express.urlencoded({ extended: true, limit: "10mb" }));
+const routes = {
+  surveys: surveyRoutes,
+  responses: responseRoutes,
+  auth: authRoutes,
+  invites: inviteRoutes,
+  questions: questionRoutes
+};
 
-app.use("/api/surveys", surveyRoutes);
-app.use("/api/responses", responseRoutes);
-app.use('/api/auth', authRoutes);
-app.use('/api/invites', inviteRoutes);
-app.use('/api/questions', questionRoutes);
+Object.entries(routes).forEach(([path, router]) => {
+  app.use(`/api/${path}`, router);
+});
 
 app.use((err, req, res, next) => {
-  console.error('Express error:', err);
-  res.status(err.status || 500).json({ error: err.message || 'Internal Server Error' });
+  console.error(err);
+
+  if (err.status) {
+    return res.status(err.status).json({ error: err.message });
+  }
+
+  res.status(500).json({ error: 'Internal Server Error' });
 });
 
-process.on('unhandledRejection', (reason, p) => {
-  console.error('Unhandled Rejection at:', p, 'reason:', reason);
+process.on('unhandledRejection', err => {
+  console.error('Unhandled Rejection:', err);
 });
-process.on('uncaughtException', (err) => {
-  console.error('Uncaught Exception thrown:', err);
+
+process.on('uncaughtException', err => {
+  console.error('Uncaught Exception:', err);
   process.exit(1);
 });
 
@@ -39,9 +50,11 @@ const startServer = async () => {
   try {
     await connectDB();
     const PORT = process.env.PORT || 3000;
-    app.listen(PORT, () => console.log(`Serwer działa na porcie ${PORT}`));
+    app.listen(PORT, () => {
+      console.log(`Serwer działa na porcie ${PORT}`);
+    });
   } catch (err) {
-    console.error("Błąd przy uruchamianiu serwera:", err);
+    console.error('Błąd przy starcie serwera:', err);
     process.exit(1);
   }
 };

@@ -17,8 +17,13 @@ const request = async (method, url, data, config) => {
   return res.data;
 };
 
-export async function fetchSurveys() {
-  const data = await request('get', '/api/surveys');
+export async function fetchSurveys(filters = {}) {
+  const params = new URLSearchParams();
+  if (filters.search) params.append('search', filters.search);
+  if (filters.status) params.append('status', filters.status);
+  if (filters.sort) params.append('sort', filters.sort);
+  const query = params.toString() ? `?${params.toString()}` : '';
+  const data = await request('get', `/api/surveys${query}`);
   return Array.isArray(data) ? data.map(normalizeSurvey) : [];
 }
 
@@ -46,8 +51,8 @@ export async function submitResponse(surveyId, answersObj) {
 
  
 
-export async function createInvite(surveyId, maxUses = 1, expiresAt = null) {
-  return request('post', '/api/invites/create', { surveyId, maxUses, expiresAt });
+export async function createInvite(surveyId, maxUses = 1, expiresAt = null, count = 1) {
+  return request('post', '/api/invites/create', { surveyId, maxUses, expiresAt, count });
 }
 
 export async function publishSurvey(id) {
@@ -138,6 +143,10 @@ export async function toggleFavorite(id) {
 
 export async function reorderQuestions(questionIds) {
   return request('put', '/api/questions/reorder', { order: questionIds });
+}
+
+export async function validateInviteToken(token) {
+  return request('get', `/api/invites/validate/${token}`);
 }
 
 export default API;

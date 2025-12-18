@@ -17,6 +17,10 @@ export default function SurveyEditor() {
   const [notification, setNotification] = useState(null);
   const [showQuestionPicker, setShowQuestionPicker] = useState(false);
   const [savedQuestionIds, setSavedQuestionIds] = useState(new Set());
+  const [inviteQuantity, setInviteQuantity] = useState(1);
+  const [showInviteLinksModal, setShowInviteLinksModal] = useState(false);
+  const [inviteLinks, setInviteLinks] = useState([]);
+  const [copiedLinks, setCopiedLinks] = useState(new Set());
 
   const navigate = useNavigate();
 
@@ -57,6 +61,8 @@ export default function SurveyEditor() {
 
   const handleDragEnd = (result) => {
     if (!result.destination) return;
+    if (result.source.index === result.destination.index) return;
+    
     const items = Array.from(survey.questions);
     const [moved] = items.splice(result.source.index, 1);
     items.splice(result.destination.index, 0, moved);
@@ -73,8 +79,9 @@ export default function SurveyEditor() {
   };
 
   const handleAddFromSaved = (selectedQuestions) => {
-    const newQuestions = selectedQuestions.map(q => ({
-      id: Date.now().toString() + Math.random(),
+    const baseTime = Date.now();
+    const newQuestions = selectedQuestions.map((q, idx) => ({
+      id: `${baseTime}-${idx}-${Math.random().toString(36).substr(2, 9)}`,
       type: q.type,
       title: q.title,
       required: q.required || false,
@@ -319,6 +326,22 @@ export default function SurveyEditor() {
                 className="w-4 h-4 text-gray-900 focus:ring-gray-900 disabled:cursor-not-allowed"
               />
               <label className="text-sm text-gray-700">Tylko jedno wypełnienie (wymaga tokena)</label>
+              {survey.singleResponse && (
+                <div className="ml-auto flex items-center gap-2">
+                  <label className="text-sm text-gray-700">Liczba tokenów:</label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={inviteQuantity}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value) || 1;
+                      setInviteQuantity(Math.max(1, val));
+                    }}
+                    disabled={isArchived}
+                    className="w-20 p-2 border border-gray-300 rounded-lg focus:border-gray-900 focus:ring-1 focus:ring-gray-900 focus:outline-none disabled:bg-gray-100 disabled:cursor-not-allowed"
+                  />
+                </div>
+              )}
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
@@ -400,20 +423,30 @@ export default function SurveyEditor() {
                             return;
                           }
 
-                          // Dla ankiet z jednorazowym wypełnieniem generujemy token.
+                          // Dla ankiet z jednorazowym wypełnieniem generuj tokeny
                           try {
-                            const res = await createInvite(sid, 1, null);
-                            const token = res && res.invite && res.invite.token;
-                            const link = `${window.location.origin}/survey/${sid}?t=${token}`;
-                            setLastInvite({ token, link });
-                            setNotification({
-                              message: `Utworzono zaproszenie (jednorazowy link): ${link}`,
-                              type: 'success',
-                              copyText: link
-                            });
-                          } catch (err) { 
-                            console.error(err); 
-                            setNotification({ message: 'Błąd tworzenia zaproszenia', type: 'error' });
+                            const res = await createInvite(sid, 1, null, inviteQuantity);
+                            const invites = res.invites || (res.invite ? [res.invite] : []);
+                            const links = invites.map(inv => ({
+                              token: inv.token,
+                              link: `${window.location.origin}/survey/${sid}?t=${inv.token}`
+                            }));
+                            
+                            if (invites.length === 1) {
+                              setLastInvite({ token: invites[0].token, link: links[0].link });
+                              setNotification({
+                                message: `Utworzono zaproszenie (jednorazowy link): ${links[0].link}`,
+                                type: 'success',
+                                copyText: links[0].link
+                              });
+                            } else {
+                              setInviteLinks(links);
+                              setCopiedLinks(new Set());
+                              setShowInviteLinksModal(true);
+                            }
+                          } catch (err) {
+                            console.error(err);
+                            setNotification({ message: 'Błąd tworzenia zaproszeń', type: 'error' });
                           }
                         }}
                       className="bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 py-2.5 px-5 text-sm font-medium rounded-lg transition-colors shadow-sm"
@@ -473,7 +506,7 @@ export default function SurveyEditor() {
           {(provided) => (
             <div ref={provided.innerRef} {...provided.droppableProps} className="space-y-3">
               {survey.questions.map((q, index) => (
-                <Draggable key={q.id} draggableId={q.id} index={index} isDragDisabled={isArchived}>
+                <Draggable key={String(q.id || q._id || index)} draggableId={String(q.id || q._id || index)} index={index} isDragDisabled={isArchived}>
                   {(provided, snapshot) => (
                     <div ref={provided.innerRef} {...provided.draggableProps} className={`bg-white border border-gray-200 rounded-lg shadow-sm ${snapshot.isDragging ? 'opacity-50 shadow-md' : 'hover:shadow-md'} transition-all`}>
                       <div className="p-5">
@@ -762,6 +795,49 @@ export default function SurveyEditor() {
       onClose={() => setShowQuestionPicker(false)}
       isOpen={showQuestionPicker}
     />
+
+    {/* Modal z linkami zaproszeń */}
+    {showInviteLinksModal && (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => setShowInviteLinksModal(false)}>
+        <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[80vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">Wygenerowane linki zaproszeń ({inviteLinks.length})</h2>
+          <div className="flex-1 overflow-y-auto mb-4 space-y-2 border border-gray-200 rounded-lg p-4">
+            {inviteLinks.map((item, index) => (
+              <div key={item.token} className={`flex items-center gap-3 p-3 rounded-lg border transition-colors ${copiedLinks.has(item.token) ? 'bg-gray-100 border-gray-300' : 'bg-white border-gray-200 hover:bg-gray-50'}`}>
+                <div className="flex-1">
+                  <div className="text-xs text-gray-500 mb-1">Link {index + 1}</div>
+                  <div className={`text-sm font-mono break-all ${copiedLinks.has(item.token) ? 'text-gray-500' : 'text-gray-900'}`}>
+                    {item.link}
+                  </div>
+                </div>
+                <button
+                  onClick={async () => {
+                    try {
+                      await navigator.clipboard.writeText(item.link);
+                      setCopiedLinks(prev => new Set([...prev, item.token]));
+                    } catch (err) {
+                      console.error('Error copying link:', err);
+                    }
+                  }}
+                  className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors whitespace-nowrap ${copiedLinks.has(item.token) ? 'bg-gray-300 text-gray-600 cursor-default' : 'bg-gray-900 text-white hover:bg-gray-800'}`}
+                  disabled={copiedLinks.has(item.token)}
+                >
+                  {copiedLinks.has(item.token) ? '✓ Skopiowano' : 'Kopiuj'}
+                </button>
+              </div>
+            ))}
+          </div>
+          <div className="flex justify-end">
+            <button
+              onClick={() => setShowInviteLinksModal(false)}
+              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              Zamknij
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
     </>
   );
 }

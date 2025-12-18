@@ -43,13 +43,11 @@ export default function SavedQuestions() {
 
   const handleSave = async (questionData) => {
     try {
-      console.log('Saving question data:', questionData);
       if (editingQuestion) {
         await updateQuestion(editingQuestion._id || editingQuestion.id, questionData);
         setNotification({ message: 'Pytanie zaktualizowane', type: 'success' });
       } else {
-        const result = await saveQuestion(questionData);
-        console.log('Question saved successfully:', result);
+        await saveQuestion(questionData);
         setNotification({ message: 'Pytanie dodane', type: 'success' });
       }
       setShowAddModal(false);
@@ -94,13 +92,17 @@ export default function SavedQuestions() {
     
     setQuestions(items);
     
-    // Zapisz kolejność do backendu
     try {
-      const questionIds = items.map(q => q._id || q.id);
+      const questionIds = items.map(q => q._id || q.id).filter(id => id && /^[a-f\d]{24}$/i.test(id));
+      if (questionIds.length !== items.length) {
+        console.error('Some questions have invalid IDs');
+        loadQuestions();
+        return;
+      }
       await reorderQuestions(questionIds);
     } catch (err) {
       console.error('Error reordering questions:', err);
-      loadQuestions(); // Przywróć poprzednią kolejność
+      loadQuestions();
     }
   };
 
@@ -208,7 +210,7 @@ export default function SavedQuestions() {
               {(provided) => (
                 <div ref={provided.innerRef} {...provided.droppableProps} className="space-y-3">
                   {questions.map((q, index) => {
-                    const qId = q._id || q.id;
+                    const qId = q._id || q.id || index;
                     return (
                       <Draggable key={qId} draggableId={String(qId)} index={index}>
                         {(provided, snapshot) => (
