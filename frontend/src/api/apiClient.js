@@ -111,7 +111,6 @@ export async function resumeDraft(resumeToken) {
   return request('get', `/api/responses/resume/${resumeToken}`);
 }
 
-// Saved Questions API
 export async function fetchSavedQuestions(filters = {}) {
   const params = new URLSearchParams();
   if (filters.search) params.append('search', filters.search);

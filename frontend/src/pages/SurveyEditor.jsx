@@ -34,7 +34,6 @@ export default function SurveyEditor() {
     load();
   }, [id]);
 
-  // czas zimowy
   const formatLocalDatetime = (val) => {
     if (!val) return '';
     const d = new Date(val);
@@ -411,8 +410,6 @@ export default function SurveyEditor() {
                             return;
                           }
 
-                          // Jeśli nie jest zaznaczone jednorazowe wypełnienie,
-                          // pokaż zwykły link bez tokena i nielimitowaną liczbą odpowiedzi.
                           if (!survey.singleResponse) {
                             const link = `${window.location.origin}/survey/${sid}`;
                             setNotification({
@@ -423,7 +420,6 @@ export default function SurveyEditor() {
                             return;
                           }
 
-                          // Dla ankiet z jednorazowym wypełnieniem generuj tokeny
                           try {
                             const res = await createInvite(sid, 1, null, inviteQuantity);
                             const invites = res.invites || (res.invite ? [res.invite] : []);

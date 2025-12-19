@@ -4,8 +4,8 @@ Aplikacja webowa do tworzenia, zarządzania i wypełniania ankiet.
 
 ## Struktura projektu (skrót)
 
-- backend/ — Express + Mongoose (API, modele, kontrolery)
-- frontend/ — React + Vite (interfejs do tworzenia i wypełniania ankiet)
+- backend/ — Express + Mongoose
+- frontend/ — React + Vite
 
 ## Wymagania
 
@@ -16,11 +16,12 @@ Aplikacja webowa do tworzenia, zarządzania i wypełniania ankiet.
 
 - backend/.env
 
-  - MONGO_URI — URI do MongoDB (np. mongodb+srv://user:pass@cluster.mongodb.net/surveydb?retryWrites=true&w=majority)
-  - PORT — opcjonalnie port serwera (domyślnie 5000)
+  - MONGO_URI
+  - PORT
+  - JWT_SECRET
 
 - frontend/.env
-  - VITE_API — URL backendu, np. `http://localhost:5000`
+  - VITE_API
 
 ## Uruchamianie (lokalnie)
 
@@ -35,7 +36,3 @@ Aplikacja webowa do tworzenia, zarządzania i wypełniania ankiet.
    - npm install
    - npm run dev
  
-## Specyfikacja funkcjonalna
-
-Pełna specyfikacja funkcjonalna projektu znajduje się w pliku `docs/functional-spec.md`.
-Zawiera opis ról użytkowników, funkcjonalności dla administratora i uczestnika, wymagania techniczne oraz przykładowe przepływy użytkownika.

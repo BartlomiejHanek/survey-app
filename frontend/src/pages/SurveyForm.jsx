@@ -26,7 +26,6 @@ export default function SurveyForm() {
         const data = await fetchSurveyById(id);
         setSurvey(data);
         
-        // Walidacja tokena przed załadowaniem formularza
         if (data && data.singleResponse && inviteTokenFromUrl) {
           try {
             const validation = await validateInviteToken(inviteTokenFromUrl);
@@ -180,7 +179,6 @@ export default function SurveyForm() {
     </div>
   );
   
-  // Sprawdź czy ankieta jest zarchiwizowana - tylko dla normalnych użytkowników (nie w trybie podglądu)
   if (survey.status === 'archived' && !previewMode) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">

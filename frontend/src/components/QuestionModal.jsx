@@ -44,7 +44,6 @@ export default function QuestionModal({ question, onSave, onClose, isOpen }) {
       return;
     }
     
-    // Przygotuj dane do zapisu
     const cleanedData = {
       title: formData.title.trim(),
       type: formData.type,
@@ -52,12 +51,10 @@ export default function QuestionModal({ question, onSave, onClose, isOpen }) {
       isFavorite: formData.isFavorite
     };
     
-    // Opcje - tylko dla typów, które ich wymagają
     if (['radio', 'checkbox', 'select'].includes(formData.type)) {
       cleanedData.options = formData.options.filter(opt => opt && opt.trim());
     }
     
-    // Skala - tylko dla typu scale
     if (formData.type === 'scale' && formData.scale) {
       cleanedData.scale = {
         min: Number(formData.scale.min) || 1,
@@ -65,7 +62,6 @@ export default function QuestionModal({ question, onSave, onClose, isOpen }) {
       };
     }
     
-    // Obraz - tylko jeśli nie jest pusty
     if (formData.imageUrl && formData.imageUrl.trim()) {
       cleanedData.imageUrl = formData.imageUrl.trim();
     }

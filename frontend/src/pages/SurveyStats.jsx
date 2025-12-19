@@ -201,18 +201,15 @@ export default function SurveyStats() {
               const agg = aggregate(q);
               let entries = Object.entries(agg).map(([k,v]) => ({ label: k, value: v }));
               
-              // Dla pytań typu scale: sortuj numerycznie i pokaż wszystkie wartości od min do max
               if (q.type === 'scale') {
                 const min = (q.scale && q.scale.min) || 1;
                 const max = (q.scale && q.scale.max) || 5;
                 
-                // Utwórz mapę istniejących wartości
                 const valueMap = {};
                 entries.forEach(e => {
                   valueMap[String(e.label)] = e.value;
                 });
                 
-                // Utwórz pełną listę wartości od min do max
                 entries = [];
                 for (let v = min; v <= max; v++) {
                   entries.push({
@@ -221,7 +218,6 @@ export default function SurveyStats() {
                   });
                 }
               } else {
-                // Dla innych typów sortuj po liczbie odpowiedzi (malejąco)
                 entries.sort((a,b) => b.value - a.value);
               }
               
