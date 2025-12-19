@@ -12,6 +12,11 @@ Aplikacja webowa do tworzenia, zarządzania i wypełniania ankiet.
 - Node.js 18+ i npm
 - Dostęp do MongoDB
 
+## Instalacja
+
+- git clone https://github.com/BartlomiejHanek/survey-app
+- cd survey-app
+
 ## Pliki konfiguracyjne (.env)
 
 - backend/.env
